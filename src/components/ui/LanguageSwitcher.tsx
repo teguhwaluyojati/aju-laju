@@ -21,8 +21,33 @@ function switchLocaleInPath(pathname: string, nextLocale: Locale): string {
 export default function LanguageSwitcher() {
   const pathname = usePathname();
   const router = useRouter();
-  const firstSegment = pathname.split("/").filter(Boolean)[0] ?? "";
-  const currentLocale: Locale = isLocale(firstSegment) ? firstSegment : defaultLocale;
+
+  function resolveCurrentLocale(): Locale {
+    const firstSegment = pathname.split("/").filter(Boolean)[0] ?? "";
+    if (isLocale(firstSegment)) {
+      return firstSegment;
+    }
+
+    if (typeof document !== "undefined") {
+      const htmlLang = document.documentElement.lang;
+      if (isLocale(htmlLang)) {
+        return htmlLang;
+      }
+
+      const cookieMatch = document.cookie
+        .split(";")
+        .map((item) => item.trim())
+        .find((item) => item.startsWith("locale="));
+      const cookieLocale = cookieMatch?.split("=")[1] ?? "";
+      if (isLocale(cookieLocale)) {
+        return cookieLocale;
+      }
+    }
+
+    return defaultLocale;
+  }
+
+  const currentLocale: Locale = resolveCurrentLocale();
 
   function changeLocale(nextLocale: Locale) {
     if (nextLocale === currentLocale) return;
