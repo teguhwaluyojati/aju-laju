@@ -73,6 +73,7 @@ export default function DashboardPage() {
               src={photoURL}
               alt={displayName}
               className="h-14 w-14 rounded-full border-2 border-brand-100 object-cover shadow-soft"
+              referrerPolicy="no-referrer"
             />
           ) : (
             <span className="grid h-14 w-14 place-items-center rounded-full bg-brand-100 text-brand-700 font-semibold text-xl shadow-soft">

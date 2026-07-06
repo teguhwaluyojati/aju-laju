@@ -186,10 +186,21 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
           </div>
 
           <div className="ml-auto flex items-center gap-2">
-            <span className="hidden text-sm text-ink-muted sm:inline">Halo, pengguna</span>
-            <span className="grid h-9 w-9 place-items-center rounded-full bg-brand-600 text-sm font-semibold text-white">
-              A
+            <span className="hidden text-sm text-ink-muted sm:inline">
+              Halo, {user?.displayName || user?.email?.split("@")[0] || "Pengguna"}
             </span>
+            {user?.photoURL ? (
+              <img
+                src={user.photoURL}
+                alt={user.displayName || "User"}
+                className="h-9 w-9 rounded-full object-cover border border-surface-border"
+                referrerPolicy="no-referrer"
+              />
+            ) : (
+              <span className="grid h-9 w-9 place-items-center rounded-full bg-brand-600 text-sm font-semibold text-white">
+                {(user?.displayName || user?.email || "U").charAt(0).toUpperCase()}
+              </span>
+            )}
           </div>
         </header>
 
