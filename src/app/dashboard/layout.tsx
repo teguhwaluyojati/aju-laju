@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { ReactNode, useState } from "react";
+import { ReactNode, useState, useEffect } from "react";
 import { signOut } from "firebase/auth";
 import Logo from "../../components/ui/Logo";
 import { auth } from "../../lib/firebase";
+import { useAuth } from "../../hooks/useAuth";
 
 type NavItem = {
   href: string;
@@ -48,6 +49,14 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const { user, loading, isAuthenticated } = useAuth();
+
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    if (!loading && !isAuthenticated) {
+      router.push("/login");
+    }
+  }, [loading, isAuthenticated, router]);
 
   async function handleLogout() {
     if (!auth) {
@@ -59,6 +68,23 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
     } finally {
       router.push("/login");
     }
+  }
+
+  // Show loading state
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-surface">
+        <div className="text-center">
+          <div className="mx-auto h-10 w-10 animate-spin rounded-full border-4 border-brand-200 border-t-brand-600"></div>
+          <p className="mt-4 text-sm text-ink-muted">Memuat...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Don't render dashboard if not authenticated
+  if (!isAuthenticated) {
+    return null;
   }
 
   return (

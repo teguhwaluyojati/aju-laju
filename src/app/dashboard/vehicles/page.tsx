@@ -17,31 +17,8 @@ type Vehicle = {
   totalFuel: number;
 };
 
-const mockVehicles: Vehicle[] = [
-  {
-    id: "v1",
-    name: "Vario Hitam",
-    plateNumber: "B 1234 ABC",
-    type: "motorcycle",
-    brand: "Honda Vario 160",
-    year: 2023,
-    totalService: 3,
-    totalFuel: 24,
-  },
-  {
-    id: "v2",
-    name: "Mobil Keluarga",
-    plateNumber: "B 5678 DEF",
-    type: "car",
-    brand: "Toyota Avanza",
-    year: 2021,
-    totalService: 5,
-    totalFuel: 18,
-  },
-];
-
 export default function VehiclesPage() {
-  const [vehicles] = useState<Vehicle[]>(mockVehicles);
+  const [vehicles] = useState<Vehicle[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newVehicle, setNewVehicle] = useState({
     name: "",

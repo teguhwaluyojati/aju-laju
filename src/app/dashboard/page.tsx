@@ -1,41 +1,17 @@
+"use client";
+
 import Link from "next/link";
 import { formatRupiah } from "../../utils/formatter";
-
-const stats = [
-  {
-    label: "Total Pengeluaran Bulan Ini",
-    value: formatRupiah(1240000),
-    change: "-12%",
-    changeType: "positive" as const,
-  },
-  {
-    label: "Pengeluaran Bensin",
-    value: formatRupiah(840000),
-    change: "+5%",
-    changeType: "negative" as const,
-  },
-  {
-    label: "Pengeluaran Servis",
-    value: formatRupiah(400000),
-    change: "-28%",
-    changeType: "positive" as const,
-  },
-  {
-    label: "Total Kendaraan",
-    value: "2",
-    change: null,
-    changeType: null,
-  },
-];
-
-const recentActivities = [
-  { type: "fuel", title: "Isi Bensin - Pertamina Cikini", date: "28 Jun 2026", amount: 65000 },
-  { type: "service", title: "Ganti Oli Mesin", date: "24 Jun 2026", amount: 320000 },
-  { type: "fuel", title: "Isi Bensin - Shell Menteng", date: "20 Jun 2026", amount: 60000 },
-  { type: "service", title: "Servis Berkala 10.000 KM", date: "11 Mei 2026", amount: 750000 },
-];
+import { useAuth } from "../../hooks/useAuth";
 
 const quickLinks = [
+  {
+    href: "/dashboard/vehicles",
+    title: "Kendaraan",
+    description: "Kelola daftar kendaraan kamu",
+    icon: <path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9L18 10l-2-4H8L6 10l-2.5 1.1C2.7 11.3 2 12.1 2 13v3c0 .6.4 1 1 1h2M7 17a2 2 0 1 0 0-4 2 2 0 0 0 0 4ZM17 17a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z" />,
+    color: "bg-blue-50 text-blue-700",
+  },
   {
     href: "/dashboard/service",
     title: "Riwayat Servis",
@@ -53,38 +29,45 @@ const quickLinks = [
 ];
 
 export default function DashboardPage() {
+  const { user } = useAuth();
+  const displayName = user?.displayName || user?.email?.split("@")[0] || "Pengguna";
+
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Header */}
       <div>
-        <h1 className="font-display text-2xl text-ink sm:text-3xl">Dashboard</h1>
-        <p className="mt-1 text-sm text-ink-muted">Ringkasan pengeluaran kendaraan kamu.</p>
+        <h1 className="font-display text-2xl text-ink sm:text-3xl">
+          Halo, {displayName}! 👋
+        </h1>
+        <p className="mt-1 text-sm text-ink-muted">Selamat datang di AjuLaju. Mulai catat pengeluaran kendaraanmu.</p>
       </div>
 
-      {/* Stats Grid */}
+      {/* Stats Grid - Empty State */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {stats.map((stat) => (
-          <div
-            key={stat.label}
-            className="rounded-2xl border border-surface-border bg-white p-5 shadow-soft"
-          >
-            <p className="text-xs uppercase tracking-wide text-ink-subtle">{stat.label}</p>
-            <p className="mt-2 font-display text-2xl text-ink">{stat.value}</p>
-            {stat.change ? (
-              <p
-                className={`mt-1 text-xs font-medium ${
-                  stat.changeType === "positive" ? "text-brand-600" : "text-red-500"
-                }`}
-              >
-                {stat.change} dari bulan lalu
-              </p>
-            ) : null}
-          </div>
-        ))}
+        <div className="rounded-2xl border border-surface-border bg-white p-5 shadow-soft">
+          <p className="text-xs uppercase tracking-wide text-ink-subtle">Total Pengeluaran</p>
+          <p className="mt-2 font-display text-2xl text-ink">{formatRupiah(0)}</p>
+          <p className="mt-1 text-xs text-ink-muted">Bulan ini</p>
+        </div>
+        <div className="rounded-2xl border border-surface-border bg-white p-5 shadow-soft">
+          <p className="text-xs uppercase tracking-wide text-ink-subtle">Pengeluaran Bensin</p>
+          <p className="mt-2 font-display text-2xl text-ink">{formatRupiah(0)}</p>
+          <p className="mt-1 text-xs text-ink-muted">Bulan ini</p>
+        </div>
+        <div className="rounded-2xl border border-surface-border bg-white p-5 shadow-soft">
+          <p className="text-xs uppercase tracking-wide text-ink-subtle">Pengeluaran Servis</p>
+          <p className="mt-2 font-display text-2xl text-ink">{formatRupiah(0)}</p>
+          <p className="mt-1 text-xs text-ink-muted">Bulan ini</p>
+        </div>
+        <div className="rounded-2xl border border-surface-border bg-white p-5 shadow-soft">
+          <p className="text-xs uppercase tracking-wide text-ink-subtle">Total Kendaraan</p>
+          <p className="mt-2 font-display text-2xl text-ink">0</p>
+          <p className="mt-1 text-xs text-ink-muted">Terdaftar</p>
+        </div>
       </div>
 
       {/* Quick Links */}
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid gap-4 sm:grid-cols-3">
         {quickLinks.map((link) => (
           <Link
             key={link.href}
@@ -125,49 +108,39 @@ export default function DashboardPage() {
         ))}
       </div>
 
-      {/* Recent Activity */}
+      {/* Recent Activity - Empty State */}
       <div className="rounded-2xl border border-surface-border bg-white shadow-soft">
         <div className="flex items-center justify-between border-b border-surface-border px-5 py-4">
           <h3 className="font-display text-lg text-ink">Aktivitas Terbaru</h3>
-          <span className="text-xs text-ink-subtle">{recentActivities.length} aktivitas</span>
         </div>
-        <ul className="divide-y divide-surface-border">
-          {recentActivities.map((activity, index) => (
-            <li key={index} className="flex items-center justify-between px-5 py-4">
-              <div className="flex items-center gap-3">
-                <span
-                  className={`grid h-9 w-9 place-items-center rounded-lg ${
-                    activity.type === "fuel"
-                      ? "bg-brand-50 text-brand-700"
-                      : "bg-amber-50 text-amber-700"
-                  }`}
-                >
-                  <svg
-                    width="18"
-                    height="18"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.8"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    {activity.type === "fuel" ? (
-                      <path d="M4 20V6a2 2 0 0 1 2-2h7a2 2 0 0 1 2 2v14M4 20h11M15 10h3l2 2v6a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2" />
-                    ) : (
-                      <path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L4 17l3 3 5.3-5.3a4 4 0 0 0 5.4-5.4l-2.3 2.3-2.4-2.4 2.3-2.3-.6-.6Z" />
-                    )}
-                  </svg>
-                </span>
-                <div>
-                  <p className="font-medium text-ink">{activity.title}</p>
-                  <p className="text-sm text-ink-muted">{activity.date}</p>
-                </div>
-              </div>
-              <span className="font-semibold text-ink">{formatRupiah(activity.amount)}</span>
-            </li>
-          ))}
-        </ul>
+        <div className="flex flex-col items-center justify-center py-12 text-center">
+          <span className="grid h-16 w-16 place-items-center rounded-full bg-slate-100 text-ink-subtle">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+              <line x1="16" y1="2" x2="16" y2="6" />
+              <line x1="8" y1="2" x2="8" y2="6" />
+              <line x1="3" y1="10" x2="21" y2="10" />
+            </svg>
+          </span>
+          <h4 className="mt-4 font-semibold text-ink">Belum ada aktivitas</h4>
+          <p className="mt-1 max-w-xs text-sm text-ink-muted">
+            Mulai catat servis atau pengisian bensin kendaraanmu untuk melihat aktivitas di sini.
+          </p>
+          <div className="mt-6 flex gap-3">
+            <Link
+              href="/dashboard/service"
+              className="rounded-xl bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white shadow-soft transition hover:bg-brand-700"
+            >
+              + Tambah Servis
+            </Link>
+            <Link
+              href="/dashboard/fuel"
+              className="rounded-xl border border-surface-border bg-white px-4 py-2.5 text-sm font-semibold text-ink shadow-soft transition hover:bg-slate-50"
+            >
+              + Tambah Bensin
+            </Link>
+          </div>
+        </div>
       </div>
     </div>
   );
