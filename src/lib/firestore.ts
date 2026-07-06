@@ -180,6 +180,25 @@ export async function createServiceRecord(
     createdAt: Timestamp.now(),
     updatedAt: Timestamp.now(),
   });
+
+  // Update vehicle's lastServiceOdometer and odometer if provided
+  if (data.vehicleId && data.odometer && data.odometer > 0) {
+    const vehicle = await getVehicle(data.vehicleId);
+    if (vehicle) {
+      const updateData: { lastServiceOdometer: number; odometer?: number; updatedAt: ReturnType<typeof Timestamp.now> } = {
+        lastServiceOdometer: data.odometer,
+        updatedAt: Timestamp.now(),
+      };
+
+      // Also update vehicle odometer if higher
+      if (data.odometer > (vehicle.odometer || 0)) {
+        updateData.odometer = data.odometer;
+      }
+
+      await updateVehicle(data.vehicleId, updateData);
+    }
+  }
+
   return docRef.id;
 }
 
@@ -242,6 +261,34 @@ export async function createFuelRecord(
     createdAt: Timestamp.now(),
     updatedAt: Timestamp.now(),
   });
+
+  // Update vehicle odometer and fuel consumption if new odometer is higher
+  if (data.vehicleId && data.odometer > 0) {
+    const vehicle = await getVehicle(data.vehicleId);
+    if (vehicle && data.odometer > (vehicle.odometer || 0)) {
+      const updateData: { odometer: number; fuelConsumption?: number; updatedAt: ReturnType<typeof Timestamp.now> } = {
+        odometer: data.odometer,
+        updatedAt: Timestamp.now(),
+      };
+
+      // Calculate fuel consumption (km/L) if we have previous odometer data
+      if (vehicle.odometer && vehicle.odometer > 0 && data.liter > 0) {
+        const distanceTraveled = data.odometer - vehicle.odometer;
+        if (distanceTraveled > 0) {
+          const newConsumption = distanceTraveled / data.liter;
+          // Average with existing consumption for smoother calculation
+          if (vehicle.fuelConsumption && vehicle.fuelConsumption > 0) {
+            updateData.fuelConsumption = Math.round(((vehicle.fuelConsumption + newConsumption) / 2) * 10) / 10;
+          } else {
+            updateData.fuelConsumption = Math.round(newConsumption * 10) / 10;
+          }
+        }
+      }
+
+      await updateVehicle(data.vehicleId, updateData);
+    }
+  }
+
   return docRef.id;
 }
 
@@ -286,4 +333,41 @@ export async function getUserStats(userId: string) {
     totalFuelLiter,
     totalCost: totalServiceCost + totalFuelCost,
   };
+}
+
+// ==================== SERVICE REMINDERS ====================
+
+export interface ServiceReminder {
+  vehicle: Vehicle;
+  nextServiceAt: number; // KM where next service is due
+  kmRemaining: number; // KM remaining until next service
+  isUrgent: boolean; // true if within 500 KM
+}
+
+export async function getServiceReminders(userId: string): Promise<ServiceReminder[]> {
+  const vehicles = await getVehicles(userId);
+  const reminders: ServiceReminder[] = [];
+
+  for (const vehicle of vehicles) {
+    // Skip if no service interval set
+    if (!vehicle.serviceInterval || vehicle.serviceInterval <= 0) continue;
+
+    const lastService = vehicle.lastServiceOdometer || 0;
+    const currentOdometer = vehicle.odometer || 0;
+    const nextServiceAt = lastService + vehicle.serviceInterval;
+    const kmRemaining = nextServiceAt - currentOdometer;
+
+    // Only include if within 500 KM or past due
+    if (kmRemaining <= 500) {
+      reminders.push({
+        vehicle,
+        nextServiceAt,
+        kmRemaining,
+        isUrgent: kmRemaining <= 500,
+      });
+    }
+  }
+
+  // Sort by most urgent first
+  return reminders.sort((a, b) => a.kmRemaining - b.kmRemaining);
 }

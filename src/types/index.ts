@@ -21,6 +21,11 @@ export interface Vehicle {
   odometer: number;
   purchaseDate?: string;
   notes?: string;
+  // Service reminder fields
+  serviceInterval?: number; // KM interval for service reminder (e.g., 5000)
+  lastServiceOdometer?: number; // Odometer at last service
+  // Fuel consumption
+  fuelConsumption?: number; // Average km/L
   createdAt: Date;
   updatedAt: Date;
 }
