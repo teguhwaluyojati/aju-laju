@@ -77,10 +77,10 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Redirect to login if not authenticated
+  // Redirect to home if not authenticated
   useEffect(() => {
     if (!loading && !isAuthenticated) {
-      router.push("/login");
+      router.push("/");
     }
   }, [loading, isAuthenticated, router]);
 
