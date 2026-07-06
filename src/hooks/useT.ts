@@ -1,13 +1,20 @@
 "use client";
 
+import { useCallback, useMemo } from "react";
 import { useLocale } from "./useLocale";
 
 export function useT() {
   const locale = useLocale();
 
-  function t(id: string, en: string): string {
-    return locale === "en" ? en : id;
-  }
+  const t = useCallback(
+    (id: string, en: string): string => {
+      return locale === "en" ? en : id;
+    },
+    [locale]
+  );
 
-  return { t, locale };
+  return useMemo(
+    () => ({ t, locale }),
+    [t, locale]
+  );
 }

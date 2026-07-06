@@ -1,12 +1,15 @@
+import type { ReactNode } from "react";
+
 type ServiceCardProps = {
   title: string;
   date: string;
   cost: string;
   vehicle?: string;
   location?: string;
+  actions?: ReactNode;
 };
 
-export default function ServiceCard({ title, date, cost, vehicle, location }: ServiceCardProps) {
+export default function ServiceCard({ title, date, cost, vehicle, location, actions }: ServiceCardProps) {
   return (
     <article className="group rounded-2xl border border-surface-border bg-white p-5 shadow-soft transition hover:shadow-card">
       <div className="flex items-start justify-between gap-4">
@@ -27,9 +30,12 @@ export default function ServiceCard({ title, date, cost, vehicle, location }: Se
             ) : null}
           </div>
         </div>
-        <span className="whitespace-nowrap rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-ink">
-          {cost}
-        </span>
+        <div className="flex flex-col items-end gap-2">
+          <span className="whitespace-nowrap rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-ink">
+            {cost}
+          </span>
+          {actions ? <div className="flex items-center gap-1.5">{actions}</div> : null}
+        </div>
       </div>
     </article>
   );

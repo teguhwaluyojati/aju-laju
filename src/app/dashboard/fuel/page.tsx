@@ -8,8 +8,14 @@ import Modal from "../../../components/ui/Modal";
 import { formatRupiah, formatServiceDate } from "../../../utils/formatter";
 import { useAuth } from "../../../hooks/useAuth";
 import { useT } from "../../../hooks/useT";
-import { getFuelRecords, getVehicles, createFuelRecord } from "../../../lib/firestore";
-import type { FuelRecord, Vehicle } from "../../../types";
+import {
+  getFuelRecords,
+  getVehicles,
+  createFuelRecord,
+  updateFuelRecord,
+  deleteFuelRecord,
+} from "../../../lib/firestore";
+import type { FuelRecord, FuelRecordInput, Vehicle } from "../../../types";
 
 type FuelWithVehicle = FuelRecord & { vehicleName: string };
 
@@ -20,7 +26,9 @@ export default function FuelHistoryPage() {
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingFuelId, setEditingFuelId] = useState<string | null>(null);
   const [newFuel, setNewFuel] = useState({
     vehicleId: "",
     date: new Date().toISOString().split("T")[0],
@@ -30,6 +38,48 @@ export default function FuelHistoryPage() {
     odometer: 0,
     fuelType: "Pertalite",
   });
+
+  const defaultFuelState = {
+    vehicleId: "",
+    date: new Date().toISOString().split("T")[0],
+    liter: 0,
+    cost: 0,
+    station: "",
+    odometer: 0,
+    fuelType: "Pertalite",
+  };
+
+  function mapFuelWithVehicle(fuelList: FuelRecord[], vehicleList: Vehicle[]): FuelWithVehicle[] {
+    return fuelList.map((f) => ({
+      ...f,
+      vehicleName: vehicleList.find((v) => v.id === f.vehicleId)?.name || t("Kendaraan Dihapus", "Deleted Vehicle"),
+    }));
+  }
+
+  async function refreshFuelEntries(userId: string, vehicleList: Vehicle[]) {
+    const fuelList = await getFuelRecords(userId);
+    setEntries(mapFuelWithVehicle(fuelList, vehicleList));
+  }
+
+  function openAddModal() {
+    setEditingFuelId(null);
+    setNewFuel(defaultFuelState);
+    setIsModalOpen(true);
+  }
+
+  function openEditModal(entry: FuelWithVehicle) {
+    setEditingFuelId(entry.id);
+    setNewFuel({
+      vehicleId: entry.vehicleId,
+      date: entry.date,
+      liter: entry.liter,
+      cost: entry.cost,
+      station: entry.station,
+      odometer: entry.odometer,
+      fuelType: entry.fuelType || "Pertalite",
+    });
+    setIsModalOpen(true);
+  }
 
   useEffect(() => {
     async function fetchData() {
@@ -41,12 +91,7 @@ export default function FuelHistoryPage() {
         ]);
 
         setVehicles(vehicleList);
-        setEntries(
-          fuelList.map((f) => ({
-            ...f,
-            vehicleName: vehicleList.find((v) => v.id === f.vehicleId)?.name || t("Kendaraan Dihapus", "Deleted Vehicle"),
-          }))
-        );
+        setEntries(mapFuelWithVehicle(fuelList, vehicleList));
       } catch (error) {
         console.error("Error fetching fuels:", error);
       } finally {
@@ -56,13 +101,13 @@ export default function FuelHistoryPage() {
     fetchData();
   }, [user, t]);
 
-  async function handleAddFuel() {
+  async function handleSaveFuel() {
     if (!user || !newFuel.vehicleId) return;
     setSaving(true);
     try {
       const pricePerLiter = newFuel.liter > 0 ? Math.round(newFuel.cost / newFuel.liter) : 0;
 
-      await createFuelRecord(user.uid, {
+      const payload: FuelRecordInput = {
         vehicleId: newFuel.vehicleId,
         date: newFuel.date,
         liter: newFuel.liter,
@@ -71,31 +116,51 @@ export default function FuelHistoryPage() {
         station: newFuel.station,
         odometer: newFuel.odometer,
         fuelType: newFuel.fuelType,
-      });
+      };
 
-      const fuelList = await getFuelRecords(user.uid);
-      setEntries(
-        fuelList.map((f) => ({
-          ...f,
-          vehicleName: vehicles.find((v) => v.id === f.vehicleId)?.name || t("Kendaraan Dihapus", "Deleted Vehicle"),
-        }))
-      );
+      if (editingFuelId) {
+        await updateFuelRecord(editingFuelId, payload);
+      } else {
+        await createFuelRecord(user.uid, payload);
+      }
+
+      await refreshFuelEntries(user.uid, vehicles);
 
       setIsModalOpen(false);
-      setNewFuel({
-        vehicleId: "",
-        date: new Date().toISOString().split("T")[0],
-        liter: 0,
-        cost: 0,
-        station: "",
-        odometer: 0,
-        fuelType: "Pertalite",
-      });
+      setEditingFuelId(null);
+      setNewFuel(defaultFuelState);
     } catch (error) {
-      console.error("Error adding fuel:", error);
-      alert(t("Gagal menambahkan catatan bensin. Silakan coba lagi.", "Failed to add fuel record. Please try again."));
+      console.error("Error saving fuel:", error);
+      alert(
+        editingFuelId
+          ? t("Gagal memperbarui catatan bensin. Silakan coba lagi.", "Failed to update fuel record. Please try again.")
+          : t("Gagal menambahkan catatan bensin. Silakan coba lagi.", "Failed to add fuel record. Please try again.")
+      );
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleDeleteFuel(entry: FuelWithVehicle) {
+    if (!user) return;
+
+    const isConfirmed = window.confirm(
+      t(
+        `Hapus catatan bensin di \"${entry.station}\"? Tindakan ini tidak bisa dibatalkan.`,
+        `Delete fuel record at \"${entry.station}\"? This action cannot be undone.`
+      )
+    );
+    if (!isConfirmed) return;
+
+    setDeletingId(entry.id);
+    try {
+      await deleteFuelRecord(entry.id);
+      await refreshFuelEntries(user.uid, vehicles);
+    } catch (error) {
+      console.error("Error deleting fuel:", error);
+      alert(t("Gagal menghapus catatan bensin. Silakan coba lagi.", "Failed to delete fuel record. Please try again."));
+    } finally {
+      setDeletingId(null);
     }
   }
 
@@ -142,7 +207,7 @@ export default function FuelHistoryPage() {
           <h1 className="font-display text-2xl text-ink sm:text-3xl">{t("Riwayat Bensin", "Fuel History")}</h1>
           <p className="mt-1 text-sm text-ink-muted">{t("Pantau pengisian bahan bakar dan biayanya.", "Track fuel fills and their costs.")}</p>
         </div>
-        <Button onClick={() => setIsModalOpen(true)} disabled={vehicles.length === 0}>
+        <Button onClick={openAddModal} disabled={vehicles.length === 0}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
             <path d="M12 5v14M5 12h14" />
           </svg>
@@ -181,7 +246,7 @@ export default function FuelHistoryPage() {
               : t("Mulai catat pengisian bensin kendaraanmu untuk melacak konsumsi BBM.", "Start logging fuel fills to track fuel consumption.")}
           </p>
           {vehicles.length > 0 && (
-            <Button className="mt-6" onClick={() => setIsModalOpen(true)}>
+            <Button className="mt-6" onClick={openAddModal}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                 <path d="M12 5v14M5 12h14" />
               </svg>
@@ -197,26 +262,73 @@ export default function FuelHistoryPage() {
           </div>
           <ul className="divide-y divide-surface-border">
             {entries.slice(0, 10).map((entry) => (
-              <li key={entry.id} className="flex items-center justify-between px-5 py-4">
-                <div>
+              <li key={entry.id} className="flex items-start justify-between gap-3 px-5 py-4">
+                <div className="min-w-0 flex-1">
                   <p className="font-medium text-ink">{entry.station}</p>
-                  <p className="text-sm text-ink-muted">
+                  <p className="truncate text-sm text-ink-muted">
                     {formatServiceDate(entry.date, locale)} • {entry.liter} L • {entry.vehicleName}
                   </p>
                 </div>
-                <span className="font-semibold text-ink">{formatRupiah(entry.cost, locale)}</span>
+                <div className="flex items-center gap-3">
+                  <span className="whitespace-nowrap rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-ink">
+                    {formatRupiah(entry.cost, locale)}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => openEditModal(entry)}
+                    disabled={saving || deletingId === entry.id}
+                    aria-label={t("Edit", "Edit")}
+                    title={t("Edit", "Edit")}
+                    className="grid h-8 w-8 place-items-center rounded-lg border border-surface-border bg-white text-ink-muted transition hover:border-brand-300 hover:bg-brand-50 hover:text-brand-700 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M12 20h9" />
+                      <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
+                    </svg>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteFuel(entry)}
+                    disabled={saving || deletingId === entry.id}
+                    aria-label={deletingId === entry.id ? t("Menghapus...", "Deleting...") : t("Hapus", "Delete")}
+                    title={t("Hapus", "Delete")}
+                    className="grid h-8 w-8 place-items-center rounded-lg border border-red-100 bg-white text-red-500 transition hover:bg-red-50 hover:text-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {deletingId === entry.id ? (
+                      <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 0 1 8-8v4a4 4 0 0 0-4 4H4z" />
+                      </svg>
+                    ) : (
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="3 6 5 6 21 6" />
+                        <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+                        <path d="M10 11v6M14 11v6" />
+                        <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+                      </svg>
+                    )}
+                  </button>
+                </div>
               </li>
             ))}
           </ul>
         </div>
       )}
 
-      <Modal open={isModalOpen} title={t("Catat Pengisian Bensin", "Log Fuel Fill")} onClose={() => setIsModalOpen(false)}>
+      <Modal
+        open={isModalOpen}
+        title={editingFuelId ? t("Edit Catatan Bensin", "Edit Fuel Record") : t("Catat Pengisian Bensin", "Log Fuel Fill")}
+        onClose={() => {
+          setIsModalOpen(false);
+          setEditingFuelId(null);
+          setNewFuel(defaultFuelState);
+        }}
+      >
         <form
           className="space-y-4"
           onSubmit={(e) => {
             e.preventDefault();
-            handleAddFuel();
+            handleSaveFuel();
           }}
         >
           <div className="space-y-1.5">
@@ -333,11 +445,27 @@ export default function FuelHistoryPage() {
           </div>
 
           <div className="flex gap-3 pt-2">
-            <Button type="button" variant="secondary" className="flex-1" onClick={() => setIsModalOpen(false)} disabled={saving}>
+            <Button
+              type="button"
+              variant="secondary"
+              className="flex-1"
+              onClick={() => {
+                setIsModalOpen(false);
+                setEditingFuelId(null);
+                setNewFuel(defaultFuelState);
+              }}
+              disabled={saving}
+            >
               {t("Batal", "Cancel")}
             </Button>
             <Button type="submit" className="flex-1" disabled={saving}>
-              {saving ? t("Menyimpan...", "Saving...") : t("Simpan", "Save")}
+              {saving
+                ? editingFuelId
+                  ? t("Menyimpan Perubahan...", "Saving Changes...")
+                  : t("Menyimpan...", "Saving...")
+                : editingFuelId
+                ? t("Simpan Perubahan", "Save Changes")
+                : t("Simpan", "Save")}
             </Button>
           </div>
         </form>
