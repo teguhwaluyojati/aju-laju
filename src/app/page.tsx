@@ -2,41 +2,55 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Logo from "../components/ui/Logo";
 import { useAuth } from "../hooks/useAuth";
+import { useT } from "../hooks/useT";
 
-const features = [
-  {
-    title: "Riwayat Servis Terpusat",
-    description:
-      "Simpan setiap catatan servis kendaraan: tanggal, biaya, dan bengkel dalam satu daftar rapi.",
-    icon: (
-      <path d="M12 8v4l3 2M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-    ),
-  },
-  {
-    title: "Pantau Biaya Bensin",
-    description:
-      "Ketahui total pengeluaran bensin per bulan dan konsumsi kendaraan kamu dengan mudah.",
-    icon: (
-      <path d="M4 20V6a2 2 0 0 1 2-2h7a2 2 0 0 1 2 2v14M4 20h11M15 10h3l2 2v6a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2" />
-    ),
-  },
-  {
-    title: "Data Aman di Cloud",
-    description:
-      "Ditopang Firebase, catatan kamu tetap tersimpan aman dan bisa diakses dari mana saja.",
-    icon: (
-      <path d="M7 18a5 5 0 1 1 1.5-9.8A6 6 0 0 1 20 12a4 4 0 0 1-2 7.4" />
-    ),
-  },
-];
+function localizePath(locale: "id" | "en", path: string): string {
+  if (path === "/") {
+    return `/${locale}`;
+  }
+  return `/${locale}${path}`;
+}
 
 export default function LandingPage() {
   const router = useRouter();
   const { isAuthenticated, loading } = useAuth();
+  const { t, locale } = useT();
   const [mounted, setMounted] = useState(false);
+
+  const features = useMemo(
+    () => [
+      {
+        title: t("Riwayat Servis Terpusat", "Centralized Service History"),
+        description: t(
+          "Simpan setiap catatan servis kendaraan: tanggal, biaya, dan bengkel dalam satu daftar rapi.",
+          "Store every service record: date, cost, and workshop in one neat timeline."
+        ),
+        icon: <path d="M12 8v4l3 2M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />,
+      },
+      {
+        title: t("Pantau Biaya Bensin", "Track Fuel Spending"),
+        description: t(
+          "Ketahui total pengeluaran bensin per bulan dan konsumsi kendaraan kamu dengan mudah.",
+          "Understand monthly fuel spend and your vehicle consumption at a glance."
+        ),
+        icon: (
+          <path d="M4 20V6a2 2 0 0 1 2-2h7a2 2 0 0 1 2 2v14M4 20h11M15 10h3l2 2v6a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2" />
+        ),
+      },
+      {
+        title: t("Data Aman di Cloud", "Secure Cloud Data"),
+        description: t(
+          "Ditopang Firebase, catatan kamu tetap tersimpan aman dan bisa diakses dari mana saja.",
+          "Powered by Firebase, your records stay secure and available from anywhere."
+        ),
+        icon: <path d="M7 18a5 5 0 1 1 1.5-9.8A6 6 0 0 1 20 12a4 4 0 0 1-2 7.4" />,
+      },
+    ],
+    [t]
+  );
 
   useEffect(() => {
     setMounted(true);
@@ -44,11 +58,10 @@ export default function LandingPage() {
 
   useEffect(() => {
     if (!loading && isAuthenticated) {
-      router.replace("/dashboard");
+      router.replace(localizePath(locale, "/dashboard"));
     }
-  }, [loading, isAuthenticated, router]);
+  }, [loading, isAuthenticated, router, locale]);
 
-  // Show loading while checking auth
   if (!mounted || loading || isAuthenticated) {
     return (
       <div className="flex min-h-screen items-center justify-center">
@@ -63,16 +76,16 @@ export default function LandingPage() {
         <Logo />
         <nav className="flex items-center gap-2">
           <Link
-            href="/login"
+            href={localizePath(locale, "/login")}
             className="hidden rounded-xl px-4 py-2 text-sm font-medium text-ink-muted transition hover:bg-slate-100 hover:text-ink sm:inline-flex"
           >
-            Login
+            {t("Login", "Sign In")}
           </Link>
           <Link
-            href="/register"
+            href={localizePath(locale, "/register")}
             className="inline-flex items-center rounded-xl bg-ink px-4 py-2 text-sm font-medium text-white transition hover:bg-ink-soft"
           >
-            Daftar Gratis
+            {t("Daftar Gratis", "Get Started Free")}
           </Link>
         </nav>
       </header>
@@ -82,31 +95,35 @@ export default function LandingPage() {
           <div>
             <span className="inline-flex items-center gap-2 rounded-full border border-brand-100 bg-brand-50 px-3 py-1 text-xs font-medium text-brand-700">
               <span className="h-1.5 w-1.5 rounded-full bg-brand-500" />
-              Kelola kendaraan lebih mudah
+              {t("Kelola kendaraan lebih mudah", "Manage vehicles with ease")}
             </span>
             <h1 className="mt-5 font-display text-4xl leading-[1.05] text-ink sm:text-5xl lg:text-6xl">
-              Catatan servis & bensin,
-              <span className="block text-brand-600">di satu dashboard.</span>
+              {t("Catatan servis & bensin,", "Service and fuel records,")}
+              <span className="block text-brand-600">{t("di satu dashboard.", "in one dashboard.")}</span>
             </h1>
             <p className="mt-5 max-w-xl text-base text-ink-muted sm:text-lg">
-              AjuLaju bantu kamu mencatat pengeluaran kendaraan dengan tampilan bersih, cepat, dan
-              nyaman dilihat kapan saja.
+              {t(
+                "AjuLaju bantu kamu mencatat pengeluaran kendaraan dengan tampilan bersih, cepat, dan nyaman dilihat kapan saja.",
+                "AjuLaju helps you track vehicle expenses in a clean, fast dashboard that is easy to read anytime."
+              )}
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               <Link
-                href="/register"
+                href={localizePath(locale, "/register")}
                 className="inline-flex h-11 items-center rounded-xl bg-brand-600 px-5 text-sm font-semibold text-white shadow-soft transition hover:bg-brand-700"
               >
-                Mulai Sekarang
+                {t("Mulai Sekarang", "Start Now")}
               </Link>
               <Link
-                href="/login"
+                href={localizePath(locale, "/login")}
                 className="inline-flex h-11 items-center rounded-xl border border-surface-border bg-white px-5 text-sm font-semibold text-ink transition hover:bg-surface-muted"
               >
-                Saya sudah punya akun
+                {t("Saya sudah punya akun", "I already have an account")}
               </Link>
             </div>
-            <p className="mt-4 text-xs text-ink-subtle">Gratis untuk 1 kendaraan. Tanpa kartu kredit.</p>
+            <p className="mt-4 text-xs text-ink-subtle">
+              {t("Gratis untuk 1 kendaraan. Tanpa kartu kredit.", "Free for 1 vehicle. No credit card required.")}
+            </p>
           </div>
 
           <div className="relative animate-rise">
@@ -114,23 +131,21 @@ export default function LandingPage() {
             <div className="rounded-3xl border border-surface-border bg-white/80 p-5 shadow-card backdrop-blur">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs uppercase tracking-widest text-ink-subtle">Pengeluaran Bulan Ini</p>
+                  <p className="text-xs uppercase tracking-widest text-ink-subtle">{t("Pengeluaran Bulan Ini", "This Month Spend")}</p>
                   <p className="mt-1 font-display text-3xl text-ink">Rp 1.240.000</p>
                 </div>
-                <span className="rounded-full bg-brand-50 px-3 py-1 text-xs font-semibold text-brand-700">
-                  ↓ 12% MoM
-                </span>
+                <span className="rounded-full bg-brand-50 px-3 py-1 text-xs font-semibold text-brand-700">↓ 12% MoM</span>
               </div>
               <div className="mt-5 grid gap-3 sm:grid-cols-2">
                 <div className="rounded-2xl border border-surface-border bg-surface-muted p-4">
-                  <p className="text-xs text-ink-subtle">Bensin</p>
+                  <p className="text-xs text-ink-subtle">{t("Bensin", "Fuel")}</p>
                   <p className="mt-1 text-xl font-semibold text-ink">Rp 840rb</p>
                   <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-white">
                     <div className="h-full w-3/4 rounded-full bg-brand-500" />
                   </div>
                 </div>
                 <div className="rounded-2xl border border-surface-border bg-surface-muted p-4">
-                  <p className="text-xs text-ink-subtle">Servis</p>
+                  <p className="text-xs text-ink-subtle">{t("Servis", "Service")}</p>
                   <p className="mt-1 text-xl font-semibold text-ink">Rp 400rb</p>
                   <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-white">
                     <div className="h-full w-1/2 rounded-full bg-amber-400" />
@@ -146,7 +161,7 @@ export default function LandingPage() {
                   />
                 ))}
               </div>
-              <p className="mt-3 text-xs text-ink-subtle">Grafik 7 hari terakhir</p>
+              <p className="mt-3 text-xs text-ink-subtle">{t("Grafik 7 hari terakhir", "Last 7 days chart")}</p>
             </div>
           </div>
         </section>
@@ -172,13 +187,15 @@ export default function LandingPage() {
 
       <footer className="border-t border-surface-border bg-white/60 backdrop-blur">
         <div className="container-app flex flex-col items-center justify-between gap-4 py-6 text-sm text-ink-subtle sm:flex-row">
-          <p>© {new Date().getFullYear()} AjuLaju. All rights reserved.</p>
+          <p>
+            © {new Date().getFullYear()} AjuLaju. {t("Seluruh hak cipta dilindungi.", "All rights reserved.")}
+          </p>
           <div className="flex flex-wrap items-center justify-center gap-4 sm:justify-end">
-            <Link href="/tentang" className="transition hover:text-ink">
-              Tentang
+            <Link href={localizePath(locale, "/tentang")} className="transition hover:text-ink">
+              {t("Tentang", "About")}
             </Link>
             <a href="mailto:teguhwaluyojati14@gmail.com" className="transition hover:text-ink">
-              Kontak Developer
+              {t("Kontak Developer", "Contact Developer")}
             </a>
             <a href="https://teguhwaluyojati.github.io" target="_blank" rel="noopener noreferrer" className="font-medium text-brand-700 transition hover:text-brand-800">
               TWJ Dev

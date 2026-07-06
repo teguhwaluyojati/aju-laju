@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { ReactNode, useState, useEffect, useRef } from "react";
+import { ReactNode, useMemo, useState, useEffect, useRef } from "react";
 import { signOut } from "firebase/auth";
 import Logo from "../../components/ui/Logo";
 import Modal from "../../components/ui/Modal";
 import Button from "../../components/ui/Button";
 import { auth } from "../../lib/firebase";
 import { useAuth } from "../../hooks/useAuth";
+import { useT } from "../../hooks/useT";
 
 type NavItem = {
   href: string;
@@ -16,57 +17,65 @@ type NavItem = {
   icon: ReactNode;
 };
 
-const navItems: NavItem[] = [
-  {
-    href: "/dashboard",
-    label: "Dashboard",
-    icon: (
-      <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9Z" />
-    ),
-  },
-  {
-    href: "/dashboard/vehicles",
-    label: "Kendaraan",
-    icon: (
-      <path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9L18 10l-2-4H8L6 10l-2.5 1.1C2.7 11.3 2 12.1 2 13v3c0 .6.4 1 1 1h2M7 17a2 2 0 1 0 0-4 2 2 0 0 0 0 4ZM17 17a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z" />
-    ),
-  },
-  {
-    href: "/dashboard/service",
-    label: "Riwayat Servis",
-    icon: (
-      <path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L4 17l3 3 5.3-5.3a4 4 0 0 0 5.4-5.4l-2.3 2.3-2.4-2.4 2.3-2.3-.6-.6Z" />
-    ),
-  },
-  {
-    href: "/dashboard/fuel",
-    label: "Riwayat Bensin",
-    icon: (
-      <path d="M4 20V6a2 2 0 0 1 2-2h7a2 2 0 0 1 2 2v14M4 20h11M15 10h3l2 2v6a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2" />
-    ),
-  },
-  {
-    href: "/dashboard/profile",
-    label: "Profil",
-    icon: (
-      <>
-        <circle cx="12" cy="8" r="4" />
-        <path d="M4 20c0-4 4-6 8-6s8 2 8 6" />
-      </>
-    ),
-  },
-];
+function localizePath(locale: "id" | "en", path: string): string {
+  if (path === "/") {
+    return `/${locale}`;
+  }
+  return `/${locale}${path}`;
+}
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
+  const { t, locale } = useT();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
   const [logoutModalOpen, setLogoutModalOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const { user, loading, isAuthenticated } = useAuth();
 
-  // Close dropdown when clicking outside
+  const navItems: NavItem[] = useMemo(
+    () => [
+      {
+        href: "/dashboard",
+        label: t("Dashboard", "Dashboard"),
+        icon: <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9Z" />,
+      },
+      {
+        href: "/dashboard/vehicles",
+        label: t("Kendaraan", "Vehicles"),
+        icon: (
+          <path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9L18 10l-2-4H8L6 10l-2.5 1.1C2.7 11.3 2 12.1 2 13v3c0 .6.4 1 1 1h2M7 17a2 2 0 1 0 0-4 2 2 0 0 0 0 4ZM17 17a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z" />
+        ),
+      },
+      {
+        href: "/dashboard/service",
+        label: t("Riwayat Servis", "Service History"),
+        icon: (
+          <path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L4 17l3 3 5.3-5.3a4 4 0 0 0 5.4-5.4l-2.3 2.3-2.4-2.4 2.3-2.3-.6-.6Z" />
+        ),
+      },
+      {
+        href: "/dashboard/fuel",
+        label: t("Riwayat Bensin", "Fuel History"),
+        icon: (
+          <path d="M4 20V6a2 2 0 0 1 2-2h7a2 2 0 0 1 2 2v14M4 20h11M15 10h3l2 2v6a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2" />
+        ),
+      },
+      {
+        href: "/dashboard/profile",
+        label: t("Profil", "Profile"),
+        icon: (
+          <>
+            <circle cx="12" cy="8" r="4" />
+            <path d="M4 20c0-4 4-6 8-6s8 2 8 6" />
+          </>
+        ),
+      },
+    ],
+    [t]
+  );
+
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
@@ -77,22 +86,21 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Redirect to home if not authenticated
   useEffect(() => {
     if (!loading && !isAuthenticated) {
-      router.push("/");
+      router.push(localizePath(locale, "/"));
     }
-  }, [loading, isAuthenticated, router]);
+  }, [loading, isAuthenticated, router, locale]);
 
   async function handleLogout() {
     if (!auth) {
-      router.push("/");
+      router.push(localizePath(locale, "/"));
       return;
     }
     try {
       await signOut(auth);
     } finally {
-      router.push("/");
+      router.push(localizePath(locale, "/"));
     }
   }
 
@@ -101,19 +109,17 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
     setLogoutModalOpen(true);
   }
 
-  // Show loading state
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-surface">
         <div className="text-center">
           <div className="mx-auto h-10 w-10 animate-spin rounded-full border-4 border-brand-200 border-t-brand-600"></div>
-          <p className="mt-4 text-sm text-ink-muted">Memuat...</p>
+          <p className="mt-4 text-sm text-ink-muted">{t("Memuat...", "Loading...")}</p>
         </div>
       </div>
     );
   }
 
-  // Don't render dashboard if not authenticated
   if (!isAuthenticated) {
     return null;
   }
@@ -126,13 +132,13 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
         }`}
       >
         <div className="flex h-16 items-center justify-between px-5">
-          <Link href="/" onClick={() => setSidebarOpen(false)}>
+          <Link href={localizePath(locale, "/")} onClick={() => setSidebarOpen(false)}>
             <Logo />
           </Link>
           <button
             className="grid h-9 w-9 place-items-center rounded-lg text-ink-muted hover:bg-slate-100 lg:hidden"
             onClick={() => setSidebarOpen(false)}
-            aria-label="Tutup menu"
+            aria-label={t("Tutup menu", "Close menu")}
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
               <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
@@ -142,11 +148,14 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
 
         <nav className="mt-2 flex flex-col gap-1 px-3">
           {navItems.map((item) => {
-            const isActive = pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href));
+            const localizedHref = localizePath(locale, item.href);
+            const isActive =
+              pathname === localizedHref ||
+              (item.href !== "/dashboard" && pathname.startsWith(localizedHref));
             return (
               <Link
                 key={item.href}
-                href={item.href}
+                href={localizedHref}
                 onClick={() => setSidebarOpen(false)}
                 className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition ${
                   isActive
@@ -188,7 +197,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
                 <path d="M15 12H4m0 0 4-4m-4 4 4 4M9 4h9a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H9" />
               </svg>
             </span>
-            Keluar
+            {t("Keluar", "Sign out")}
           </button>
         </div>
       </aside>
@@ -205,7 +214,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
           <button
             className="grid h-9 w-9 place-items-center rounded-lg text-ink-muted hover:bg-slate-100 lg:hidden"
             onClick={() => setSidebarOpen(true)}
-            aria-label="Buka menu"
+            aria-label={t("Buka menu", "Open menu")}
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
               <path d="M4 6h16M4 12h16M4 18h16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
@@ -213,7 +222,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
           </button>
 
           <div className="hidden lg:block">
-            <h1 className="font-display text-lg text-ink">Dashboard</h1>
+            <h1 className="font-display text-lg text-ink">{t("Dashboard", "Dashboard")}</h1>
           </div>
 
           <div className="ml-auto flex items-center gap-2">
@@ -223,7 +232,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
                 className="flex items-center gap-2 rounded-xl px-2 py-1.5 transition hover:bg-slate-100"
               >
                 <span className="hidden text-sm text-ink-muted sm:inline">
-                  Halo, {user?.displayName || user?.email?.split("@")[0] || "Pengguna"}
+                  {t("Halo", "Hi")}, {user?.displayName || user?.email?.split("@")[0] || t("Pengguna", "User")}
                 </span>
                 {user?.photoURL ? (
                   <img
@@ -251,16 +260,15 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
                 </svg>
               </button>
 
-              {/* Dropdown Menu */}
               {profileDropdownOpen && (
                 <div className="absolute right-0 top-full mt-2 w-56 rounded-xl border border-surface-border bg-white py-2 shadow-card animate-fade-in">
                   <div className="border-b border-surface-border px-4 pb-3 pt-1">
-                    <p className="font-medium text-ink">{user?.displayName || "Pengguna"}</p>
+                    <p className="font-medium text-ink">{user?.displayName || t("Pengguna", "User")}</p>
                     <p className="text-xs text-ink-muted truncate">{user?.email}</p>
                   </div>
                   <div className="py-1">
                     <Link
-                      href="/dashboard/profile"
+                      href={localizePath(locale, "/dashboard/profile")}
                       onClick={() => setProfileDropdownOpen(false)}
                       className="flex items-center gap-3 px-4 py-2.5 text-sm text-ink-muted transition hover:bg-slate-50 hover:text-ink"
                     >
@@ -268,7 +276,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
                         <circle cx="12" cy="8" r="4" />
                         <path d="M4 20c0-4 4-6 8-6s8 2 8 6" />
                       </svg>
-                      Profil Saya
+                      {t("Profil Saya", "My Profile")}
                     </Link>
                     <button
                       onClick={openLogoutModal}
@@ -277,7 +285,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
                       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                         <path d="M15 12H4m0 0 4-4m-4 4 4 4M9 4h9a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H9" />
                       </svg>
-                      Keluar
+                      {t("Keluar", "Sign out")}
                     </button>
                   </div>
                 </div>
@@ -290,13 +298,15 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
 
         <footer className="border-t border-surface-border bg-white/70 px-5 py-4 text-xs text-ink-subtle sm:px-8 sm:text-sm">
           <div className="flex flex-col items-center justify-between gap-3 sm:flex-row">
-            <p>© {new Date().getFullYear()} AjuLaju. All rights reserved.</p>
+            <p>
+              © {new Date().getFullYear()} AjuLaju. {t("Seluruh hak cipta dilindungi.", "All rights reserved.")}
+            </p>
             <div className="flex flex-wrap items-center justify-center gap-4 sm:justify-end">
-              <Link href="/tentang" className="transition hover:text-ink">
-                Tentang
+              <Link href={localizePath(locale, "/tentang")} className="transition hover:text-ink">
+                {t("Tentang", "About")}
               </Link>
               <a href="mailto:teguhwaluyojati14@gmail.com" className="transition hover:text-ink">
-                Kontak Developer
+                {t("Kontak Developer", "Contact Developer")}
               </a>
               <a href="https://teguhwaluyojati.github.io" target="_blank" rel="noopener noreferrer" className="font-medium text-brand-700 transition hover:text-brand-800">
                 TWJ Dev
@@ -306,17 +316,19 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
         </footer>
       </div>
 
-      {/* Logout Confirmation Modal */}
-      <Modal open={logoutModalOpen} title="Konfirmasi Keluar" onClose={() => setLogoutModalOpen(false)}>
+      <Modal open={logoutModalOpen} title={t("Konfirmasi Keluar", "Confirm Sign Out")} onClose={() => setLogoutModalOpen(false)}>
         <div className="text-center">
           <span className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-red-50 text-red-500">
             <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
               <path d="M15 12H4m0 0 4-4m-4 4 4 4M9 4h9a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H9" />
             </svg>
           </span>
-          <h3 className="mt-4 text-lg font-semibold text-ink">Yakin ingin keluar?</h3>
+          <h3 className="mt-4 text-lg font-semibold text-ink">{t("Yakin ingin keluar?", "Are you sure you want to sign out?")}</h3>
           <p className="mt-2 text-sm text-ink-muted">
-            Kamu akan keluar dari akun dan perlu login kembali untuk mengakses dashboard.
+            {t(
+              "Kamu akan keluar dari akun dan perlu login kembali untuk mengakses dashboard.",
+              "You will be signed out and need to log in again to access the dashboard."
+            )}
           </p>
           <div className="mt-6 flex gap-3">
             <Button
@@ -324,13 +336,13 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
               className="flex-1"
               onClick={() => setLogoutModalOpen(false)}
             >
-              Batal
+              {t("Batal", "Cancel")}
             </Button>
             <button
               onClick={handleLogout}
               className="flex-1 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700"
             >
-              Ya, Keluar
+              {t("Ya, Keluar", "Yes, Sign out")}
             </button>
           </div>
         </div>

@@ -1,7 +1,10 @@
 import "./globals.css";
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import { DM_Sans, Sora } from "next/font/google";
 import { ReactNode } from "react";
+import LanguageSwitcher from "../components/ui/LanguageSwitcher";
+import { defaultLocale, isLocale } from "../i18n/config";
 
 const bodyFont = DM_Sans({
   subsets: ["latin"],
@@ -27,10 +30,17 @@ type RootLayoutProps = {
   children: ReactNode;
 };
 
-export default function RootLayout({ children }: RootLayoutProps) {
+export default async function RootLayout({ children }: RootLayoutProps) {
+  const requestHeaders = await headers();
+  const requestLocale = requestHeaders.get("x-locale") ?? "";
+  const locale = isLocale(requestLocale) ? requestLocale : defaultLocale;
+
   return (
-    <html lang="id" className={`${bodyFont.variable} ${displayFont.variable}`}>
-      <body className="font-sans antialiased">{children}</body>
+    <html lang={locale} className={`${bodyFont.variable} ${displayFont.variable}`}>
+      <body className="font-sans antialiased">
+        <LanguageSwitcher />
+        {children}
+      </body>
     </html>
   );
 }
