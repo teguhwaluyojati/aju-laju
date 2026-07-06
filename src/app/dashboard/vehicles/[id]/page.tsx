@@ -1,16 +1,19 @@
 "use client";
 
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import Button from "../../../../components/ui/Button";
+import Input from "../../../../components/ui/Input";
+import Modal from "../../../../components/ui/Modal";
 import { useAuth } from "../../../../hooks/useAuth";
-import { getVehicle, getServiceRecords, getFuelRecords } from "../../../../lib/firestore";
+import { getVehicle, getServiceRecords, getFuelRecords, updateVehicle, deleteVehicle } from "../../../../lib/firestore";
 import { formatRupiah, formatServiceDate } from "../../../../utils/formatter";
-import type { Vehicle, ServiceRecord, FuelRecord } from "../../../../types";
+import type { Vehicle, ServiceRecord, FuelRecord, VehicleInput } from "../../../../types";
 
 export default function VehicleDetailPage() {
   const params = useParams();
+  const router = useRouter();
   const { user } = useAuth();
   const vehicleId = params.id as string;
   
@@ -18,6 +21,18 @@ export default function VehicleDetailPage() {
   const [services, setServices] = useState<ServiceRecord[]>([]);
   const [fuels, setFuels] = useState<FuelRecord[]>([]);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [editForm, setEditForm] = useState<VehicleInput>({
+    name: "",
+    plateNumber: "",
+    type: "motorcycle",
+    brand: "",
+    year: new Date().getFullYear(),
+    color: "",
+    odometer: 0,
+  });
 
   useEffect(() => {
     async function fetchData() {
@@ -43,6 +58,49 @@ export default function VehicleDetailPage() {
     }
     fetchData();
   }, [user, vehicleId]);
+
+  function openEditModal() {
+    if (!vehicle) return;
+    setEditForm({
+      name: vehicle.name,
+      plateNumber: vehicle.plateNumber,
+      type: vehicle.type,
+      brand: vehicle.brand,
+      year: vehicle.year,
+      color: vehicle.color || "",
+      odometer: vehicle.odometer || 0,
+    });
+    setIsEditModalOpen(true);
+  }
+
+  async function handleEditVehicle() {
+    if (!vehicle) return;
+    setSaving(true);
+    try {
+      await updateVehicle(vehicle.id, editForm);
+      setVehicle({ ...vehicle, ...editForm });
+      setIsEditModalOpen(false);
+    } catch (error) {
+      console.error("Error updating vehicle:", error);
+      alert("Gagal memperbarui kendaraan.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleDeleteVehicle() {
+    if (!vehicle) return;
+    setSaving(true);
+    try {
+      await deleteVehicle(vehicle.id);
+      router.push("/dashboard/vehicles");
+    } catch (error) {
+      console.error("Error deleting vehicle:", error);
+      alert("Gagal menghapus kendaraan.");
+    } finally {
+      setSaving(false);
+    }
+  }
 
   if (loading) {
     return (
@@ -147,12 +205,23 @@ export default function VehicleDetailPage() {
               </div>
             </div>
           </div>
-          <Button variant="secondary">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
-            </svg>
-            Edit
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="secondary\" onClick={openEditModal}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+              </svg>
+              Edit
+            </Button>
+            <button
+              onClick={() => setIsDeleteModalOpen(true)}
+              className="rounded-xl border border-red-200 bg-white px-4 py-2.5 text-sm font-semibold text-red-600 transition hover:bg-red-50"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="inline-block mr-1.5">
+                <path d="M3 6h18M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+              </svg>
+              Hapus
+            </button>
+          </div>
         </div>
 
         {/* Stats */}
@@ -253,6 +322,178 @@ export default function VehicleDetailPage() {
           )}
         </div>
       </div>
+
+      {/* Edit Vehicle Modal */}
+      <Modal open={isEditModalOpen} title="Edit Kendaraan" onClose={() => setIsEditModalOpen(false)}>
+        <form
+          className="space-y-4"
+          onSubmit={(e) => {
+            e.preventDefault();
+            handleEditVehicle();
+          }}
+        >
+          <div className="space-y-1.5">
+            <label className="block text-sm font-medium text-ink" htmlFor="editVehicleName">
+              Nama Kendaraan
+            </label>
+            <Input
+              id="editVehicleName"
+              placeholder="Contoh: Vario Hitam"
+              value={editForm.name}
+              onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+              required
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="block text-sm font-medium text-ink" htmlFor="editVehiclePlate">
+              Plat Nomor
+            </label>
+            <Input
+              id="editVehiclePlate"
+              placeholder="Contoh: B 1234 ABC"
+              value={editForm.plateNumber}
+              onChange={(e) => setEditForm({ ...editForm, plateNumber: e.target.value })}
+              required
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="block text-sm font-medium text-ink">Tipe Kendaraan</label>
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => setEditForm({ ...editForm, type: "motorcycle" })}
+                className={`flex flex-1 items-center justify-center gap-2 rounded-xl border px-4 py-3 text-sm font-medium transition ${
+                  editForm.type === "motorcycle"
+                    ? "border-brand-500 bg-brand-50 text-brand-700"
+                    : "border-surface-border bg-white text-ink-muted hover:bg-surface-muted"
+                }`}
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="17" r="2" />
+                  <path d="M12 15V5l4 2v4" />
+                  <circle cx="12" cy="5" r="1" />
+                </svg>
+                Motor
+              </button>
+              <button
+                type="button"
+                onClick={() => setEditForm({ ...editForm, type: "car" })}
+                className={`flex flex-1 items-center justify-center gap-2 rounded-xl border px-4 py-3 text-sm font-medium transition ${
+                  editForm.type === "car"
+                    ? "border-brand-500 bg-brand-50 text-brand-700"
+                    : "border-surface-border bg-white text-ink-muted hover:bg-surface-muted"
+                }`}
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9L18 10l-2-4H8L6 10l-2.5 1.1C2.7 11.3 2 12.1 2 13v3c0 .6.4 1 1 1h2" />
+                  <circle cx="7" cy="17" r="2" />
+                  <circle cx="17" cy="17" r="2" />
+                </svg>
+                Mobil
+              </button>
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="block text-sm font-medium text-ink" htmlFor="editVehicleBrand">
+              Merek & Tipe
+            </label>
+            <Input
+              id="editVehicleBrand"
+              placeholder="Contoh: Honda Vario 160"
+              value={editForm.brand}
+              onChange={(e) => setEditForm({ ...editForm, brand: e.target.value })}
+              required
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <label className="block text-sm font-medium text-ink" htmlFor="editVehicleYear">
+                Tahun
+              </label>
+              <Input
+                id="editVehicleYear"
+                type="number"
+                min={1990}
+                max={new Date().getFullYear() + 1}
+                value={editForm.year}
+                onChange={(e) => setEditForm({ ...editForm, year: parseInt(e.target.value) })}
+                required
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="block text-sm font-medium text-ink" htmlFor="editVehicleOdometer">
+                Odometer (KM)
+              </label>
+              <Input
+                id="editVehicleOdometer"
+                type="number"
+                min={0}
+                value={editForm.odometer}
+                onChange={(e) => setEditForm({ ...editForm, odometer: parseInt(e.target.value) || 0 })}
+              />
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="block text-sm font-medium text-ink" htmlFor="editVehicleColor">
+              Warna
+            </label>
+            <Input
+              id="editVehicleColor"
+              placeholder="Contoh: Hitam"
+              value={editForm.color}
+              onChange={(e) => setEditForm({ ...editForm, color: e.target.value })}
+            />
+          </div>
+
+          <div className="flex gap-3 pt-2">
+            <Button type="button" variant="secondary" className="flex-1" onClick={() => setIsEditModalOpen(false)} disabled={saving}>
+              Batal
+            </Button>
+            <Button type="submit" className="flex-1" disabled={saving}>
+              {saving ? "Menyimpan..." : "Simpan Perubahan"}
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <Modal open={isDeleteModalOpen} title="Hapus Kendaraan" onClose={() => setIsDeleteModalOpen(false)}>
+        <div className="text-center">
+          <span className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-red-50 text-red-500">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M3 6h18M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+            </svg>
+          </span>
+          <h3 className="mt-4 text-lg font-semibold text-ink">
+            Hapus {vehicle?.name}?
+          </h3>
+          <p className="mt-2 text-sm text-ink-muted">
+            Kendaraan ini akan dihapus secara permanen beserta semua catatan servis dan bensinnya. Aksi ini tidak dapat dibatalkan.
+          </p>
+          <div className="mt-6 flex gap-3">
+            <Button
+              variant="secondary"
+              className="flex-1"
+              onClick={() => setIsDeleteModalOpen(false)}
+              disabled={saving}
+            >
+              Batal
+            </Button>
+            <button
+              onClick={handleDeleteVehicle}
+              disabled={saving}
+              className="flex-1 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700 disabled:opacity-50"
+            >
+              {saving ? "Menghapus..." : "Ya, Hapus"}
+            </button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

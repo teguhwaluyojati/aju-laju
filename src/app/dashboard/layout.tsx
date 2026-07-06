@@ -86,13 +86,13 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
 
   async function handleLogout() {
     if (!auth) {
-      router.push("/login");
+      router.push("/");
       return;
     }
     try {
       await signOut(auth);
     } finally {
-      router.push("/login");
+      router.push("/");
     }
   }
 

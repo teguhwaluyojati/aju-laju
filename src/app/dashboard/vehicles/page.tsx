@@ -252,41 +252,27 @@ export default function VehiclesPage() {
               </div>
 
               <Link href={`/dashboard/vehicles/${vehicle.id}`} className="block">
-                <div className="flex items-start justify-between">
-                  <span
-                    className={`grid h-12 w-12 place-items-center rounded-xl ${
-                      vehicle.type === "car"
-                        ? "bg-blue-50 text-blue-600"
-                        : "bg-brand-50 text-brand-700"
-                    }`}
-                  >
-                    {vehicle.type === "car" ? (
-                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9L18 10l-2-4H8L6 10l-2.5 1.1C2.7 11.3 2 12.1 2 13v3c0 .6.4 1 1 1h2" />
-                        <circle cx="7" cy="17" r="2" />
-                        <circle cx="17" cy="17" r="2" />
-                      </svg>
-                    ) : (
-                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                        <circle cx="12" cy="17" r="2" />
-                        <path d="M12 15V5l4 2v4" />
-                        <circle cx="12" cy="5" r="1" />
-                      </svg>
-                    )}
-                  </span>
-                  <svg
-                    width="20"
-                    height="20"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    className="text-ink-subtle transition group-hover:translate-x-1 group-hover:text-brand-600"
-                  >
-                    <path d="m9 18 6-6-6-6" />
-                  </svg>
-                </div>
+                <span
+                  className={`grid h-12 w-12 place-items-center rounded-xl ${
+                    vehicle.type === "car"
+                      ? "bg-blue-50 text-blue-600"
+                      : "bg-brand-50 text-brand-700"
+                  }`}
+                >
+                  {vehicle.type === "car" ? (
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9L18 10l-2-4H8L6 10l-2.5 1.1C2.7 11.3 2 12.1 2 13v3c0 .6.4 1 1 1h2" />
+                      <circle cx="7" cy="17" r="2" />
+                      <circle cx="17" cy="17" r="2" />
+                    </svg>
+                  ) : (
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="12" cy="17" r="2" />
+                      <path d="M12 15V5l4 2v4" />
+                      <circle cx="12" cy="5" r="1" />
+                    </svg>
+                  )}
+                </span>
 
                 <h3 className="mt-4 font-semibold text-ink group-hover:text-brand-700">{vehicle.name}</h3>
                 <p className="text-sm text-ink-muted">{vehicle.brand}</p>
