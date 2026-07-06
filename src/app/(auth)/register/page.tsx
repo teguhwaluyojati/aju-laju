@@ -6,6 +6,7 @@ import { FormEvent, useMemo, useState, useEffect } from "react";
 import { createUserWithEmailAndPassword, updateProfile, signInWithPopup } from "firebase/auth";
 import Logo from "../../../components/ui/Logo";
 import { auth, firebaseConfigError, isFirebaseConfigured, googleProvider, facebookProvider } from "../../../lib/firebase";
+import { useAuth } from "../../../hooks/useAuth";
 
 function getReadableFirebaseError(code: string): string {
   const messageMap: Record<string, string> = {
@@ -23,6 +24,7 @@ function getReadableFirebaseError(code: string): string {
 
 export default function RegisterPage() {
   const router = useRouter();
+  const { isAuthenticated, loading: authLoading } = useAuth();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -36,6 +38,13 @@ export default function RegisterPage() {
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  // Redirect if already logged in
+  useEffect(() => {
+    if (!authLoading && isAuthenticated) {
+      router.replace("/dashboard");
+    }
+  }, [authLoading, isAuthenticated, router]);
 
   const isFormInvalid = useMemo(() => {
     return (
@@ -62,6 +71,15 @@ export default function RegisterPage() {
       setCurrentStep(3);
     }
   }, [nameValid, emailValid, currentStep]);
+
+  // Show loading while checking auth
+  if (!mounted || authLoading || isAuthenticated) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-brand-200 border-t-brand-600"></div>
+      </div>
+    );
+  }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();

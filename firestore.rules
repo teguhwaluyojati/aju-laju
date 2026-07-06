@@ -1,0 +1,38 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper function to check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Helper function to check if user owns the document
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    // Users collection - user can only read/write their own profile
+    match /users/{userId} {
+      allow read, write: if isOwner(userId);
+    }
+    
+    // Vehicles collection - user can only access their own vehicles
+    match /vehicles/{vehicleId} {
+      allow read, write: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+    }
+    
+    // Services collection - user can only access their own service records
+    match /services/{serviceId} {
+      allow read, write: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+    }
+    
+    // Fuels collection - user can only access their own fuel records
+    match /fuels/{fuelId} {
+      allow read, write: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+    }
+  }
+}

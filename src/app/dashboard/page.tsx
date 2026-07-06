@@ -1,8 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { formatRupiah } from "../../utils/formatter";
 import { useAuth } from "../../hooks/useAuth";
+import { getUserStats } from "../../lib/firestore";
 
 const quickLinks = [
   {
@@ -28,9 +30,36 @@ const quickLinks = [
   },
 ];
 
+interface Stats {
+  vehicleCount: number;
+  serviceCount: number;
+  fuelCount: number;
+  totalServiceCost: number;
+  totalFuelCost: number;
+  totalCost: number;
+}
+
 export default function DashboardPage() {
   const { user } = useAuth();
   const displayName = user?.displayName || user?.email?.split("@")[0] || "Pengguna";
+  
+  const [stats, setStats] = useState<Stats | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchStats() {
+      if (!user) return;
+      try {
+        const data = await getUserStats(user.uid);
+        setStats(data);
+      } catch (error) {
+        console.error("Error fetching stats:", error);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchStats();
+  }, [user]);
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -42,26 +71,34 @@ export default function DashboardPage() {
         <p className="mt-1 text-sm text-ink-muted">Selamat datang di AjuLaju. Mulai catat pengeluaran kendaraanmu.</p>
       </div>
 
-      {/* Stats Grid - Empty State */}
+      {/* Stats Grid */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div className="rounded-2xl border border-surface-border bg-white p-5 shadow-soft">
           <p className="text-xs uppercase tracking-wide text-ink-subtle">Total Pengeluaran</p>
-          <p className="mt-2 font-display text-2xl text-ink">{formatRupiah(0)}</p>
-          <p className="mt-1 text-xs text-ink-muted">Bulan ini</p>
+          <p className="mt-2 font-display text-2xl text-ink">
+            {loading ? "..." : formatRupiah(stats?.totalCost || 0)}
+          </p>
+          <p className="mt-1 text-xs text-ink-muted">Semua waktu</p>
         </div>
         <div className="rounded-2xl border border-surface-border bg-white p-5 shadow-soft">
           <p className="text-xs uppercase tracking-wide text-ink-subtle">Pengeluaran Bensin</p>
-          <p className="mt-2 font-display text-2xl text-ink">{formatRupiah(0)}</p>
-          <p className="mt-1 text-xs text-ink-muted">Bulan ini</p>
+          <p className="mt-2 font-display text-2xl text-ink">
+            {loading ? "..." : formatRupiah(stats?.totalFuelCost || 0)}
+          </p>
+          <p className="mt-1 text-xs text-ink-muted">{stats?.fuelCount || 0} pengisian</p>
         </div>
         <div className="rounded-2xl border border-surface-border bg-white p-5 shadow-soft">
           <p className="text-xs uppercase tracking-wide text-ink-subtle">Pengeluaran Servis</p>
-          <p className="mt-2 font-display text-2xl text-ink">{formatRupiah(0)}</p>
-          <p className="mt-1 text-xs text-ink-muted">Bulan ini</p>
+          <p className="mt-2 font-display text-2xl text-ink">
+            {loading ? "..." : formatRupiah(stats?.totalServiceCost || 0)}
+          </p>
+          <p className="mt-1 text-xs text-ink-muted">{stats?.serviceCount || 0} servis</p>
         </div>
         <div className="rounded-2xl border border-surface-border bg-white p-5 shadow-soft">
           <p className="text-xs uppercase tracking-wide text-ink-subtle">Total Kendaraan</p>
-          <p className="mt-2 font-display text-2xl text-ink">0</p>
+          <p className="mt-2 font-display text-2xl text-ink">
+            {loading ? "..." : stats?.vehicleCount || 0}
+          </p>
           <p className="mt-1 text-xs text-ink-muted">Terdaftar</p>
         </div>
       </div>

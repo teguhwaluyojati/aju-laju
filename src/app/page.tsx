@@ -1,5 +1,10 @@
+"use client";
+
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import Logo from "../components/ui/Logo";
+import { useAuth } from "../hooks/useAuth";
 
 const features = [
   {
@@ -29,6 +34,29 @@ const features = [
 ];
 
 export default function LandingPage() {
+  const router = useRouter();
+  const { isAuthenticated, loading } = useAuth();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!loading && isAuthenticated) {
+      router.replace("/dashboard");
+    }
+  }, [loading, isAuthenticated, router]);
+
+  // Show loading while checking auth
+  if (!mounted || loading || isAuthenticated) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-brand-200 border-t-brand-600"></div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen">
       <header className="container-app flex items-center justify-between py-6">

@@ -1,24 +1,24 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Button from "../../../components/ui/Button";
 import Input from "../../../components/ui/Input";
 import Modal from "../../../components/ui/Modal";
+import { useAuth } from "../../../hooks/useAuth";
+import { getVehicles, createVehicle, getServiceRecords, getFuelRecords } from "../../../lib/firestore";
+import type { Vehicle } from "../../../types";
 
-type Vehicle = {
-  id: string;
-  name: string;
-  plateNumber: string;
-  type: "car" | "motorcycle";
-  brand: string;
-  year: number;
+type VehicleWithStats = Vehicle & {
   totalService: number;
   totalFuel: number;
 };
 
 export default function VehiclesPage() {
-  const [vehicles] = useState<Vehicle[]>([]);
+  const { user } = useAuth();
+  const [vehicles, setVehicles] = useState<VehicleWithStats[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newVehicle, setNewVehicle] = useState({
     name: "",
@@ -26,19 +26,79 @@ export default function VehiclesPage() {
     type: "motorcycle" as "car" | "motorcycle",
     brand: "",
     year: new Date().getFullYear(),
+    color: "",
+    odometer: 0,
   });
 
-  function handleAddVehicle() {
-    // TODO: Simpan ke Firestore
-    console.log("Adding vehicle:", newVehicle);
-    setIsModalOpen(false);
-    setNewVehicle({
-      name: "",
-      plateNumber: "",
-      type: "motorcycle",
-      brand: "",
-      year: new Date().getFullYear(),
-    });
+  useEffect(() => {
+    async function fetchVehicles() {
+      if (!user) return;
+      try {
+        const [vehicleList, services, fuels] = await Promise.all([
+          getVehicles(user.uid),
+          getServiceRecords(user.uid),
+          getFuelRecords(user.uid),
+        ]);
+        
+        // Add stats to each vehicle
+        const vehiclesWithStats = vehicleList.map((v) => ({
+          ...v,
+          totalService: services.filter((s) => s.vehicleId === v.id).length,
+          totalFuel: fuels.filter((f) => f.vehicleId === v.id).length,
+        }));
+        
+        setVehicles(vehiclesWithStats);
+      } catch (error) {
+        console.error("Error fetching vehicles:", error);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchVehicles();
+  }, [user]);
+
+  async function handleAddVehicle() {
+    if (!user) return;
+    setSaving(true);
+    try {
+      await createVehicle(user.uid, {
+        name: newVehicle.name,
+        plateNumber: newVehicle.plateNumber,
+        type: newVehicle.type,
+        brand: newVehicle.brand,
+        year: newVehicle.year,
+        color: newVehicle.color || "Tidak disebutkan",
+        odometer: newVehicle.odometer,
+      });
+      
+      // Refresh list
+      const vehicleList = await getVehicles(user.uid);
+      setVehicles(vehicleList.map((v) => ({ ...v, totalService: 0, totalFuel: 0 })));
+      
+      setIsModalOpen(false);
+      setNewVehicle({
+        name: "",
+        plateNumber: "",
+        type: "motorcycle",
+        brand: "",
+        year: new Date().getFullYear(),
+        color: "",
+        odometer: 0,
+      });
+    } catch (error) {
+      console.error("Error adding vehicle:", error);
+      alert("Gagal menambahkan kendaraan. Silakan coba lagi.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="flex min-h-[50vh] items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-brand-200 border-t-brand-600"></div>
+      </div>
+    );
   }
 
   return (
@@ -233,11 +293,11 @@ export default function VehiclesPage() {
           </div>
 
           <div className="flex gap-3 pt-2">
-            <Button type="button" variant="secondary" className="flex-1" onClick={() => setIsModalOpen(false)}>
+            <Button type="button" variant="secondary" className="flex-1" onClick={() => setIsModalOpen(false)} disabled={saving}>
               Batal
             </Button>
-            <Button type="submit" className="flex-1">
-              Simpan
+            <Button type="submit" className="flex-1" disabled={saving}>
+              {saving ? "Menyimpan..." : "Simpan"}
             </Button>
           </div>
         </form>

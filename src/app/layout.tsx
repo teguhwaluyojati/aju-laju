@@ -17,6 +17,10 @@ export const metadata: Metadata = {
   title: "AjuLaju — Catatan Servis & Bensin Kendaraan",
   description:
     "Pantau riwayat servis dan pengeluaran bensin kendaraan kamu dalam satu dashboard yang rapi.",
+  icons: {
+    icon: "/icon.svg",
+    apple: "/apple-icon",
+  },
 };
 
 type RootLayoutProps = {
