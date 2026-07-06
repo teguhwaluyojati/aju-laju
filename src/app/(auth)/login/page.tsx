@@ -3,8 +3,9 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useMemo, useState, useEffect } from "react";
-import { signInWithEmailAndPassword, signInWithPopup, sendEmailVerification, signOut } from "firebase/auth";
+import { signInWithEmailAndPassword, signInWithPopup, sendEmailVerification } from "firebase/auth";
 import Logo from "../../../components/ui/Logo";
+import Button from "../../../components/ui/Button";
 import Modal from "../../../components/ui/Modal";
 import PolicyModalContent from "../../../components/ui/PolicyModalContent";
 import { auth, firebaseConfigError, isFirebaseConfigured, googleProvider, facebookProvider } from "../../../lib/firebase";
@@ -44,14 +45,18 @@ export default function LoginPage() {
       return messageMap[code] ?? `${t("Login gagal. Silakan coba lagi.", "Login failed. Please try again.")} (${code || "unknown"})`;
     }
 
-  const { isAuthenticated, loading: authLoading } = useAuth();
+  const { user, isAuthenticated, loading: authLoading } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [noticeMessage, setNoticeMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isResending, setIsResending] = useState(false);
   const [hasAcceptedPolicies, setHasAcceptedPolicies] = useState(false);
   const [activePolicyModal, setActivePolicyModal] = useState<"terms" | "privacy" | null>(null);
+  const [showVerificationModal, setShowVerificationModal] = useState(false);
+  const [verificationCooldown, setVerificationCooldown] = useState(0);
+  const [pendingVerificationEmail, setPendingVerificationEmail] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [focusedField, setFocusedField] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
@@ -60,12 +65,25 @@ export default function LoginPage() {
     setMounted(true);
   }, []);
 
+  useEffect(() => {
+    if (verificationCooldown <= 0) return;
+
+    const timer = window.setTimeout(() => {
+      setVerificationCooldown((current) => Math.max(0, current - 1));
+    }, 1000);
+
+    return () => window.clearTimeout(timer);
+  }, [verificationCooldown]);
+
   // Redirect if already logged in
   useEffect(() => {
-    if (!authLoading && isAuthenticated) {
+    if (authLoading || !isAuthenticated || !user) return;
+
+    const hasPasswordProvider = user.providerData.some((provider) => provider.providerId === "password");
+    if (!hasPasswordProvider || user.emailVerified) {
       router.replace(localizePath("/dashboard"));
     }
-  }, [authLoading, isAuthenticated, router, locale]);
+  }, [authLoading, isAuthenticated, router, locale, user]);
 
   const isFormInvalid = useMemo(() => {
     return email.trim().length === 0 || password.trim().length < 6;
@@ -75,8 +93,8 @@ export default function LoginPage() {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
   }, [email]);
 
-  // Show loading while checking auth
-  if (!mounted || authLoading || isAuthenticated) {
+  // Show loading while checking auth, but do not block authenticated-unverified users.
+  if (!mounted || authLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div className="h-8 w-8 animate-spin rounded-full border-4 border-brand-200 border-t-brand-600"></div>
@@ -119,13 +137,10 @@ export default function LoginPage() {
       );
       if (hasPasswordProvider && !credential.user.emailVerified) {
         await sendEmailVerification(credential.user);
-        await signOut(auth);
-        setNoticeMessage(
-          t(
-            "Email kamu belum terverifikasi. Kami kirim ulang link verifikasi, cek inbox/spam lalu login kembali.",
-            "Your email is not verified yet. We resent the verification link, please check inbox/spam and sign in again."
-          )
-        );
+        setPendingVerificationEmail(credential.user.email || email.trim());
+        setShowVerificationModal(true);
+        setVerificationCooldown(60);
+        setNoticeMessage("");
         setPassword("");
         return;
       }
@@ -134,6 +149,52 @@ export default function LoginPage() {
     } catch (error) {
       const firebaseError = error as { code?: string };
       setErrorMessage(getReadableFirebaseError(firebaseError.code ?? ""));
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  async function handleResendVerificationEmail() {
+    if (!auth?.currentUser || verificationCooldown > 0) return;
+
+    setIsResending(true);
+    setErrorMessage("");
+    try {
+      await sendEmailVerification(auth.currentUser);
+      setVerificationCooldown(60);
+      setNoticeMessage(
+        t(
+          "Email verifikasi berhasil dikirim ulang. Silakan cek inbox/spam.",
+          "Verification email has been resent. Please check inbox/spam."
+        )
+      );
+    } catch (error) {
+      const firebaseError = error as { code?: string };
+      setErrorMessage(getReadableFirebaseError(firebaseError.code ?? ""));
+    } finally {
+      setIsResending(false);
+    }
+  }
+
+  async function handleVerifiedAndContinue() {
+    if (!auth?.currentUser) return;
+
+    setIsSubmitting(true);
+    setErrorMessage("");
+    try {
+      await auth.currentUser.reload();
+      if (auth.currentUser.emailVerified) {
+        setShowVerificationModal(false);
+        router.push(localizePath("/dashboard"));
+        return;
+      }
+
+      setErrorMessage(
+        t(
+          "Email kamu belum terverifikasi. Cek inbox/spam lalu klik link aktivasi.",
+          "Your email is not verified yet. Please check inbox/spam and click the verification link."
+        )
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -631,6 +692,46 @@ export default function LoginPage() {
         {activePolicyModal ? (
           <PolicyModalContent locale={locale} type={activePolicyModal} />
         ) : null}
+      </Modal>
+
+      <Modal
+        open={showVerificationModal}
+        title={t("Verifikasi Email Diperlukan", "Email Verification Required")}
+        onClose={() => setShowVerificationModal(false)}
+      >
+        <div className="space-y-4">
+          <p className="text-sm leading-relaxed text-ink-muted">
+            {t(
+              "Akun kamu belum terverifikasi. Kami sudah mengirim link aktivasi ke email berikut:",
+              "Your account is not verified yet. We have sent an activation link to:"
+            )}
+          </p>
+          <p className="rounded-lg bg-slate-50 px-3 py-2 text-sm font-medium text-ink">{pendingVerificationEmail || user?.email || email || "-"}</p>
+          <p className="text-xs text-ink-subtle">
+            {t(
+              "Cek inbox/spam, klik link verifikasi, lalu lanjutkan login.",
+              "Check inbox/spam, click the verification link, then continue login."
+            )}
+          </p>
+
+          <div className="grid gap-2 sm:grid-cols-2">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={handleResendVerificationEmail}
+              disabled={isResending || verificationCooldown > 0}
+            >
+              {isResending
+                ? t("Mengirim Ulang...", "Resending...")
+                : verificationCooldown > 0
+                ? t(`Kirim Ulang (${verificationCooldown}d)`, `Resend (${verificationCooldown}s)`)
+                : t("Kirim Ulang Email", "Resend Email")}
+            </Button>
+            <Button type="button" onClick={handleVerifiedAndContinue} disabled={isSubmitting}>
+              {isSubmitting ? t("Memeriksa...", "Checking...") : t("Saya Sudah Verifikasi", "I Have Verified")}
+            </Button>
+          </div>
+        </div>
       </Modal>
 
       <style jsx>{`

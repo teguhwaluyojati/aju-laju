@@ -52,6 +52,8 @@ export default function ProfilePage() {
       })
     : "-";
 
+  const isEmailVerified = !!user?.emailVerified;
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div>
@@ -85,6 +87,30 @@ export default function ProfilePage() {
               {user?.displayName || user?.email?.split("@")[0] || t("Pengguna", "User")}
             </h2>
             <p className="text-sm text-ink-muted">{user?.email}</p>
+            <div className="mt-2">
+              <span
+                className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium ${
+                  isEmailVerified
+                    ? "bg-emerald-50 text-emerald-700"
+                    : "bg-amber-50 text-amber-700"
+                }`}
+              >
+                {isEmailVerified ? (
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M20 6 9 17l-5-5" />
+                  </svg>
+                ) : (
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="10" />
+                    <path d="M12 8v5" />
+                    <path d="M12 16h.01" />
+                  </svg>
+                )}
+                {isEmailVerified
+                  ? t("Email Terverifikasi", "Email Verified")
+                  : t("Email Belum Terverifikasi", "Email Not Verified")}
+              </span>
+            </div>
             <p className="mt-2 text-xs text-ink-subtle">
               {t("Member sejak", "Member since")} {createdAt}
             </p>
@@ -170,6 +196,14 @@ export default function ProfilePage() {
           <div>
             <p className="text-xs uppercase tracking-wide text-ink-subtle">{t("Login Terakhir", "Last Sign-in")}</p>
             <p className="mt-1 text-sm text-ink-muted">{lastSignIn}</p>
+          </div>
+          <div>
+            <p className="text-xs uppercase tracking-wide text-ink-subtle">{t("Status Verifikasi", "Verification Status")}</p>
+            <p className={`mt-1 text-sm font-medium ${isEmailVerified ? "text-emerald-700" : "text-amber-700"}`}>
+              {isEmailVerified
+                ? t("Terverifikasi", "Verified")
+                : t("Belum Terverifikasi", "Not Verified")}
+            </p>
           </div>
         </div>
       </div>

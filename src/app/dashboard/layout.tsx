@@ -88,9 +88,26 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!loading && !isAuthenticated) {
-      router.push(localizePath(locale, "/"));
+      router.replace(localizePath(locale, "/"));
     }
   }, [loading, isAuthenticated, router, locale]);
+
+  useEffect(() => {
+    if (loading || !isAuthenticated || !user) return;
+
+    const hasPasswordProvider = user.providerData.some(
+      (provider) => provider.providerId === "password"
+    );
+
+    if (hasPasswordProvider && !user.emailVerified) {
+      if (auth) {
+        signOut(auth).catch(() => {
+          // Ignore sign-out failures here; redirect still enforces access guard.
+        });
+      }
+      router.replace(localizePath(locale, "/login"));
+    }
+  }, [loading, isAuthenticated, user, router, locale]);
 
   async function handleLogout() {
     if (!auth) {
@@ -121,6 +138,13 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   }
 
   if (!isAuthenticated) {
+    return null;
+  }
+
+  const hasPasswordProvider = user?.providerData?.some(
+    (provider) => provider.providerId === "password"
+  );
+  if (hasPasswordProvider && !user?.emailVerified) {
     return null;
   }
 
