@@ -35,6 +35,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [hasAcceptedPolicies, setHasAcceptedPolicies] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [focusedField, setFocusedField] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
@@ -81,6 +82,16 @@ export default function LoginPage() {
       return;
     }
 
+    if (!hasAcceptedPolicies) {
+      setErrorMessage(
+        t(
+          "Centang persetujuan Syarat & Ketentuan serta Kebijakan Privasi terlebih dahulu.",
+          "Please accept the Terms & Conditions and Privacy Policy first."
+        )
+      );
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
@@ -97,6 +108,17 @@ export default function LoginPage() {
   async function handleGoogleLogin() {
     if (!auth) return;
     setErrorMessage("");
+
+    if (!hasAcceptedPolicies) {
+      setErrorMessage(
+        t(
+          "Centang persetujuan Syarat & Ketentuan serta Kebijakan Privasi terlebih dahulu.",
+          "Please accept the Terms & Conditions and Privacy Policy first."
+        )
+      );
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       await signInWithPopup(auth, googleProvider);
@@ -114,6 +136,17 @@ export default function LoginPage() {
   async function handleFacebookLogin() {
     if (!auth) return;
     setErrorMessage("");
+
+    if (!hasAcceptedPolicies) {
+      setErrorMessage(
+        t(
+          "Centang persetujuan Syarat & Ketentuan serta Kebijakan Privasi terlebih dahulu.",
+          "Please accept the Terms & Conditions and Privacy Policy first."
+        )
+      );
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       await signInWithPopup(auth, facebookProvider);
@@ -401,6 +434,41 @@ export default function LoginPage() {
                   </div>
                 )}
 
+                <label className="flex items-start gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-3 text-sm text-ink-muted">
+                  <input
+                    type="checkbox"
+                    checked={hasAcceptedPolicies}
+                    onChange={(event) => {
+                      setHasAcceptedPolicies(event.target.checked);
+                      if (event.target.checked) {
+                        setErrorMessage("");
+                      }
+                    }}
+                    className="mt-0.5 h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+                  />
+                  <span>
+                    {t("Saya sudah membaca dan menyetujui", "I have read and agree to")}{" "}
+                    <Link
+                      href={localizePath("/terms")}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-medium text-brand-700 underline underline-offset-2 hover:text-brand-800"
+                    >
+                      {t("Syarat & Ketentuan", "Terms & Conditions")}
+                    </Link>{" "}
+                    {t("serta", "and")}{" "}
+                    <Link
+                      href={localizePath("/privacy")}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-medium text-brand-700 underline underline-offset-2 hover:text-brand-800"
+                    >
+                      {t("Kebijakan Privasi", "Privacy Policy")}
+                    </Link>
+                    .
+                  </span>
+                </label>
+
                 {/* Error Message */}
                 {errorMessage && (
                   <div className="flex items-start gap-3 rounded-xl bg-red-50 p-4 animate-shake">
@@ -416,9 +484,9 @@ export default function LoginPage() {
                 {/* Submit Button */}
                 <button
                   type="submit"
-                  disabled={isSubmitting || isFormInvalid || (mounted && !isFirebaseConfigured)}
+                  disabled={isSubmitting || isFormInvalid || !hasAcceptedPolicies || (mounted && !isFirebaseConfigured)}
                   className={`group relative w-full overflow-hidden rounded-xl py-4 font-semibold text-white transition-all duration-300 ${
-                    isSubmitting || isFormInvalid || (mounted && !isFirebaseConfigured)
+                    isSubmitting || isFormInvalid || !hasAcceptedPolicies || (mounted && !isFirebaseConfigured)
                       ? "cursor-not-allowed bg-slate-300"
                       : "bg-gradient-to-r from-brand-600 to-brand-700 shadow-lg shadow-brand-500/30 hover:shadow-xl hover:shadow-brand-500/40 active:scale-[0.98]"
                   }`}
@@ -452,7 +520,7 @@ export default function LoginPage() {
                 <button
                   type="button"
                   onClick={handleGoogleLogin}
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || !hasAcceptedPolicies}
                   className="flex items-center justify-center gap-2 rounded-xl border-2 border-slate-200 bg-white py-3 text-sm font-medium text-ink transition-all hover:border-slate-300 hover:bg-slate-50 hover:shadow-md active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   <svg width="18" height="18" viewBox="0 0 24 24">
@@ -466,7 +534,7 @@ export default function LoginPage() {
                 <button
                   type="button"
                   onClick={handleFacebookLogin}
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || !hasAcceptedPolicies}
                   className="flex items-center justify-center gap-2 rounded-xl border-2 border-slate-200 bg-white py-3 text-sm font-medium text-ink transition-all hover:border-slate-300 hover:bg-slate-50 hover:shadow-md active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="#1877F2">
@@ -487,9 +555,9 @@ export default function LoginPage() {
               </p>
               <p className="mt-4 text-xs text-ink-subtle">
                 {t("Dengan masuk, kamu menyetujui", "By signing in, you agree to")}{" "}
-                <Link href="#" className="underline hover:text-ink-muted">{t("Syarat & Ketentuan", "Terms & Conditions")}</Link>{" "}
+                <Link href={localizePath("/terms")} target="_blank" rel="noopener noreferrer" className="underline hover:text-ink-muted">{t("Syarat & Ketentuan", "Terms & Conditions")}</Link>{" "}
                 {t("serta", "and")}{" "}
-                <Link href="#" className="underline hover:text-ink-muted">{t("Kebijakan Privasi", "Privacy Policy")}</Link>{" "}
+                <Link href={localizePath("/privacy")} target="_blank" rel="noopener noreferrer" className="underline hover:text-ink-muted">{t("Kebijakan Privasi", "Privacy Policy")}</Link>{" "}
                 AjuLaju.
               </p>
             </div>
