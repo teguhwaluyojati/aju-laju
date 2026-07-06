@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import { DM_Sans, Sora } from "next/font/google";
 import { ReactNode } from "react";
 import LanguageSwitcher from "../components/ui/LanguageSwitcher";
+import PageTransitionLoader from "../components/ui/PageTransitionLoader";
 import { defaultLocale, isLocale } from "../i18n/config";
 
 const bodyFont = DM_Sans({
@@ -38,6 +39,7 @@ export default async function RootLayout({ children }: RootLayoutProps) {
   return (
     <html lang={locale} className={`${bodyFont.variable} ${displayFont.variable}`}>
       <body className="font-sans antialiased">
+        <PageTransitionLoader />
         <LanguageSwitcher />
         {children}
       </body>

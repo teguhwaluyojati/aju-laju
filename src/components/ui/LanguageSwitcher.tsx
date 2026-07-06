@@ -52,11 +52,14 @@ export default function LanguageSwitcher() {
   function changeLocale(nextLocale: Locale) {
     if (nextLocale === currentLocale) return;
     const nextPath = switchLocaleInPath(pathname, nextLocale);
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new Event("app:navigation-start"));
+    }
     router.push(nextPath);
   }
 
   return (
-    <div className="fixed bottom-4 right-4 z-30 rounded-full border border-surface-border bg-white/90 p-1 shadow-soft backdrop-blur">
+    <div className="fixed bottom-20 right-4 z-30 rounded-full border border-surface-border bg-white/90 p-1 shadow-soft backdrop-blur md:bottom-24">
       <div className="flex items-center gap-1 text-xs font-semibold">
         <button
           type="button"

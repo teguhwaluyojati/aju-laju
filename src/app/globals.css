@@ -27,6 +27,26 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+.route-loader-bar {
+  background-size: 240% 100%;
+  animation: route-loader-shift 1.1s linear infinite;
+}
+
+@keyframes route-loader-shift {
+  0% {
+    transform: scaleX(0.15);
+    background-position: 100% 0;
+  }
+  60% {
+    transform: scaleX(0.72);
+    background-position: 45% 0;
+  }
+  100% {
+    transform: scaleX(1);
+    background-position: 0 0;
+  }
+}
+
 ::selection {
   background: rgba(16, 185, 129, 0.25);
   color: #064e3b;
