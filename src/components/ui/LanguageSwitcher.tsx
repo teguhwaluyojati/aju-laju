@@ -59,7 +59,7 @@ export default function LanguageSwitcher() {
   }
 
   return (
-    <div className="fixed bottom-20 right-4 z-30 rounded-full border border-surface-border bg-white/90 p-1 shadow-soft backdrop-blur md:bottom-24">
+    <div className="fixed bottom-8 right-4 z-30 rounded-full border border-surface-border bg-white/90 p-1 shadow-soft backdrop-blur md:bottom-10">
       <div className="flex items-center gap-1 text-xs font-semibold">
         <button
           type="button"
