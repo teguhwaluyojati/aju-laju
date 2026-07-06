@@ -274,7 +274,7 @@ export default function DashboardPage() {
 
             <div className="relative mt-6 h-40 border-b border-l border-slate-200 ml-16">
               {/* Horizontal Grid Lines */}
-              {[...gridValues].reverse().map((value, index) => (
+              {gridValues.map((value, index) => (
                 <div
                   key={index}
                   className="absolute left-0 right-0 border-t border-dashed border-slate-200"
@@ -301,16 +301,18 @@ export default function DashboardPage() {
               ))}
 
               {/* Bars */}
-              <div className="absolute inset-0 flex items-end">
+              <div className="absolute inset-0 flex items-end z-10">
                 {monthlyData.totals.map((value, index) => {
-                  const height = Math.max((value / maxValue) * 100, 2);
+                  const height = value > 0 ? Math.max((value / maxValue) * 100, 8) : 0;
                   return (
-                    <div key={index} className="group relative flex flex-1 flex-col items-center px-1">
-                      <div
-                        className="w-full max-w-12 rounded-t-md bg-gradient-to-t from-brand-500/30 to-brand-500 transition group-hover:from-brand-600/50 group-hover:to-brand-600"
-                        style={{ height: `${height}%` }}
-                      />
-                      <div className="pointer-events-none absolute bottom-full mb-2 rounded-md bg-ink px-2 py-1 text-xs text-white opacity-0 shadow-pop transition group-hover:opacity-100 whitespace-nowrap z-10">
+                    <div key={index} className="group relative flex flex-1 flex-col items-center justify-end px-1 h-full">
+                      {value > 0 && (
+                        <div
+                          className="w-full max-w-10 rounded-t-md bg-gradient-to-t from-brand-400 to-brand-600 transition group-hover:from-brand-500 group-hover:to-brand-700"
+                          style={{ height: `${height}%` }}
+                        />
+                      )}
+                      <div className="pointer-events-none absolute bottom-full mb-2 rounded-md bg-ink px-2 py-1 text-xs text-white opacity-0 shadow-pop transition group-hover:opacity-100 whitespace-nowrap z-20">
                         {formatRupiah(value)}
                       </div>
                     </div>
