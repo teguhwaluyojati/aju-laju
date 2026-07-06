@@ -253,48 +253,75 @@ export default function DashboardPage() {
       </div>
 
       {/* Expense Chart */}
-      {!loading && monthlyData.totals.some((t) => t > 0) && (
-        <div className="rounded-2xl border border-surface-border bg-white p-5 shadow-soft sm:p-6">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <h3 className="font-display text-lg text-ink">Grafik Pengeluaran</h3>
-              <p className="text-sm text-ink-muted">Total pengeluaran per bulan</p>
+      {!loading && monthlyData.totals.some((t) => t > 0) && (() => {
+        const maxValue = Math.max(...monthlyData.totals, 1);
+        const gridLines = [0.25, 0.5, 0.75, 1].map((p) => Math.round(maxValue * p));
+        
+        return (
+          <div className="rounded-2xl border border-surface-border bg-white p-5 shadow-soft sm:p-6">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h3 className="font-display text-lg text-ink">Grafik Pengeluaran</h3>
+                <p className="text-sm text-ink-muted">Total pengeluaran per bulan</p>
+              </div>
+              <div className="text-right">
+                <p className="text-xs text-ink-subtle">Rata-rata</p>
+                <p className="font-semibold text-ink">
+                  {formatRupiah(Math.round(monthlyData.totals.reduce((a, b) => a + b, 0) / monthlyData.totals.length))}
+                </p>
+              </div>
             </div>
-            <div className="text-right">
-              <p className="text-xs text-ink-subtle">Rata-rata</p>
-              <p className="font-semibold text-ink">
-                {formatRupiah(Math.round(monthlyData.totals.reduce((a, b) => a + b, 0) / monthlyData.totals.length))}
-              </p>
-            </div>
-          </div>
 
-          <div className="mt-6 flex h-40 items-end gap-2">
-            {monthlyData.totals.map((value, index) => {
-              const maxValue = Math.max(...monthlyData.totals, 1);
-              const height = Math.max((value / maxValue) * 100, 6);
-              return (
-                <div key={index} className="group relative flex flex-1 flex-col items-center">
-                  <div
-                    className="w-full rounded-t-lg bg-gradient-to-t from-brand-500/25 to-brand-500 transition group-hover:from-brand-600/40 group-hover:to-brand-600"
-                    style={{ height: `${height}%` }}
-                  />
-                  <div className="pointer-events-none absolute bottom-full mb-2 rounded-md bg-ink px-2 py-1 text-xs text-white opacity-0 shadow-pop transition group-hover:opacity-100 whitespace-nowrap">
-                    {formatRupiah(value)}
+            <div className="relative mt-6 h-40">
+              {/* Grid Lines */}
+              <div className="absolute inset-0 flex flex-col justify-between">
+                {[...gridLines].reverse().map((value, index) => (
+                  <div key={index} className="flex items-center gap-2">
+                    <span className="w-16 text-right text-[10px] text-ink-subtle">
+                      {value >= 1000000 
+                        ? `${(value / 1000000).toFixed(1)}jt`
+                        : value >= 1000 
+                        ? `${(value / 1000).toFixed(0)}rb`
+                        : value}
+                    </span>
+                    <div className="flex-1 border-t border-dashed border-slate-200" />
                   </div>
+                ))}
+                <div className="flex items-center gap-2">
+                  <span className="w-16 text-right text-[10px] text-ink-subtle">0</span>
+                  <div className="flex-1 border-t border-slate-200" />
                 </div>
-              );
-            })}
-          </div>
+              </div>
 
-          <div className="mt-2 flex gap-2 text-center text-xs text-ink-subtle">
-            {monthlyData.labels.map((label, index) => (
-              <span key={index} className="flex-1">
-                {label}
-              </span>
-            ))}
+              {/* Bars */}
+              <div className="absolute inset-0 flex items-end gap-2 pl-[4.5rem]">
+                {monthlyData.totals.map((value, index) => {
+                  const height = Math.max((value / maxValue) * 100, 4);
+                  return (
+                    <div key={index} className="group relative flex flex-1 flex-col items-center">
+                      <div
+                        className="w-full rounded-t-lg bg-gradient-to-t from-brand-500/25 to-brand-500 transition group-hover:from-brand-600/40 group-hover:to-brand-600"
+                        style={{ height: `${height}%` }}
+                      />
+                      <div className="pointer-events-none absolute bottom-full mb-2 rounded-md bg-ink px-2 py-1 text-xs text-white opacity-0 shadow-pop transition group-hover:opacity-100 whitespace-nowrap z-10">
+                        {formatRupiah(value)}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="mt-2 flex gap-2 pl-[4.5rem] text-center text-xs text-ink-subtle">
+              {monthlyData.labels.map((label, index) => (
+                <span key={index} className="flex-1">
+                  {label}
+                </span>
+              ))}
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Recent Activity */}
       <div className="rounded-2xl border border-surface-border bg-white shadow-soft">
