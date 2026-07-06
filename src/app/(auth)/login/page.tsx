@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { FormEvent, useMemo, useState, useEffect } from "react";
 import { signInWithEmailAndPassword, signInWithPopup } from "firebase/auth";
 import Logo from "../../../components/ui/Logo";
+import Modal from "../../../components/ui/Modal";
+import PolicyModalContent from "../../../components/ui/PolicyModalContent";
 import { auth, firebaseConfigError, isFirebaseConfigured, googleProvider, facebookProvider } from "../../../lib/firebase";
 import { useAuth } from "../../../hooks/useAuth";
 import { useT } from "../../../hooks/useT";
@@ -36,6 +38,7 @@ export default function LoginPage() {
   const [errorMessage, setErrorMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [hasAcceptedPolicies, setHasAcceptedPolicies] = useState(false);
+  const [activePolicyModal, setActivePolicyModal] = useState<"terms" | "privacy" | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [focusedField, setFocusedField] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
@@ -448,23 +451,29 @@ export default function LoginPage() {
                   />
                   <span>
                     {t("Saya sudah membaca dan menyetujui", "I have read and agree to")}{" "}
-                    <Link
-                      href={localizePath("/terms")}
-                      target="_blank"
-                      rel="noopener noreferrer"
+                    <button
+                      type="button"
+                      onClick={(event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        setActivePolicyModal("terms");
+                      }}
                       className="font-medium text-brand-700 underline underline-offset-2 hover:text-brand-800"
                     >
                       {t("Syarat & Ketentuan", "Terms & Conditions")}
-                    </Link>{" "}
+                    </button>{" "}
                     {t("serta", "and")}{" "}
-                    <Link
-                      href={localizePath("/privacy")}
-                      target="_blank"
-                      rel="noopener noreferrer"
+                    <button
+                      type="button"
+                      onClick={(event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        setActivePolicyModal("privacy");
+                      }}
                       className="font-medium text-brand-700 underline underline-offset-2 hover:text-brand-800"
                     >
                       {t("Kebijakan Privasi", "Privacy Policy")}
-                    </Link>
+                    </button>
                     .
                   </span>
                 </label>
@@ -555,15 +564,29 @@ export default function LoginPage() {
               </p>
               <p className="mt-4 text-xs text-ink-subtle">
                 {t("Dengan masuk, kamu menyetujui", "By signing in, you agree to")}{" "}
-                <Link href={localizePath("/terms")} target="_blank" rel="noopener noreferrer" className="underline hover:text-ink-muted">{t("Syarat & Ketentuan", "Terms & Conditions")}</Link>{" "}
+                <button type="button" onClick={() => setActivePolicyModal("terms")} className="underline hover:text-ink-muted">{t("Syarat & Ketentuan", "Terms & Conditions")}</button>{" "}
                 {t("serta", "and")}{" "}
-                <Link href={localizePath("/privacy")} target="_blank" rel="noopener noreferrer" className="underline hover:text-ink-muted">{t("Kebijakan Privasi", "Privacy Policy")}</Link>{" "}
+                <button type="button" onClick={() => setActivePolicyModal("privacy")} className="underline hover:text-ink-muted">{t("Kebijakan Privasi", "Privacy Policy")}</button>{" "}
                 AjuLaju.
               </p>
             </div>
           </section>
         </main>
       </div>
+
+      <Modal
+        open={activePolicyModal !== null}
+        title={
+          activePolicyModal === "terms"
+            ? t("Syarat & Ketentuan", "Terms & Conditions")
+            : t("Kebijakan Privasi", "Privacy Policy")
+        }
+        onClose={() => setActivePolicyModal(null)}
+      >
+        {activePolicyModal ? (
+          <PolicyModalContent locale={locale} type={activePolicyModal} />
+        ) : null}
+      </Modal>
 
       <style jsx>{`
         @keyframes float {
