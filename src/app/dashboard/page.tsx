@@ -42,6 +42,8 @@ interface Stats {
 export default function DashboardPage() {
   const { user } = useAuth();
   const displayName = user?.displayName || user?.email?.split("@")[0] || "Pengguna";
+  const photoURL = user?.photoURL;
+  const email = user?.email || "";
   
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -63,13 +65,44 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      {/* Header */}
-      <div>
-        <h1 className="font-display text-2xl text-ink sm:text-3xl">
-          Halo, {displayName}! 👋
-        </h1>
-        <p className="mt-1 text-sm text-ink-muted">Selamat datang di AjuLaju. Mulai catat pengeluaran kendaraanmu.</p>
+      {/* Header with Profile */}
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="flex items-center gap-4">
+          {photoURL ? (
+            <img
+              src={photoURL}
+              alt={displayName}
+              className="h-14 w-14 rounded-full border-2 border-brand-100 object-cover shadow-soft"
+            />
+          ) : (
+            <span className="grid h-14 w-14 place-items-center rounded-full bg-brand-100 text-brand-700 font-semibold text-xl shadow-soft">
+              {displayName.charAt(0).toUpperCase()}
+            </span>
+          )}
+          <div>
+            <h1 className="font-display text-2xl text-ink sm:text-3xl">
+              Halo, {displayName}! 👋
+            </h1>
+            <p className="text-sm text-ink-muted">{email}</p>
+          </div>
+        </div>
+        <div className="text-right">
+          <p className="text-xs text-ink-subtle">Member sejak</p>
+          <p className="text-sm font-medium text-ink">
+            {user?.metadata?.creationTime 
+              ? new Date(user.metadata.creationTime).toLocaleDateString("id-ID", { 
+                  day: "numeric", 
+                  month: "long", 
+                  year: "numeric" 
+                })
+              : "-"}
+          </p>
+        </div>
       </div>
+
+      <p className="text-sm text-ink-muted">
+        Selamat datang di <span className="font-semibold">Aju</span><span className="font-semibold text-brand-600">Laju</span>. Mulai catat pengeluaran kendaraanmu.
+      </p>
 
       {/* Stats Grid */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
