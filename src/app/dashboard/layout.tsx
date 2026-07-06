@@ -2,9 +2,11 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { ReactNode, useState, useEffect } from "react";
+import { ReactNode, useState, useEffect, useRef } from "react";
 import { signOut } from "firebase/auth";
 import Logo from "../../components/ui/Logo";
+import Modal from "../../components/ui/Modal";
+import Button from "../../components/ui/Button";
 import { auth } from "../../lib/firebase";
 import { useAuth } from "../../hooks/useAuth";
 
@@ -43,13 +45,37 @@ const navItems: NavItem[] = [
       <path d="M4 20V6a2 2 0 0 1 2-2h7a2 2 0 0 1 2 2v14M4 20h11M15 10h3l2 2v6a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2" />
     ),
   },
+  {
+    href: "/dashboard/profile",
+    label: "Profil",
+    icon: (
+      <>
+        <circle cx="12" cy="8" r="4" />
+        <path d="M4 20c0-4 4-6 8-6s8 2 8 6" />
+      </>
+    ),
+  },
 ];
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
+  const [logoutModalOpen, setLogoutModalOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
   const { user, loading, isAuthenticated } = useAuth();
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setProfileDropdownOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -68,6 +94,11 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
     } finally {
       router.push("/login");
     }
+  }
+
+  function openLogoutModal() {
+    setProfileDropdownOpen(false);
+    setLogoutModalOpen(true);
   }
 
   // Show loading state
@@ -149,7 +180,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
 
         <div className="absolute inset-x-3 bottom-4">
           <button
-            onClick={handleLogout}
+            onClick={openLogoutModal}
             className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-ink-muted transition hover:bg-slate-100 hover:text-ink"
           >
             <span className="grid h-8 w-8 place-items-center rounded-lg bg-slate-100 text-ink-muted">
@@ -186,21 +217,72 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
           </div>
 
           <div className="ml-auto flex items-center gap-2">
-            <span className="hidden text-sm text-ink-muted sm:inline">
-              Halo, {user?.displayName || user?.email?.split("@")[0] || "Pengguna"}
-            </span>
-            {user?.photoURL ? (
-              <img
-                src={user.photoURL}
-                alt={user.displayName || "User"}
-                className="h-9 w-9 rounded-full object-cover border border-surface-border"
-                referrerPolicy="no-referrer"
-              />
-            ) : (
-              <span className="grid h-9 w-9 place-items-center rounded-full bg-brand-600 text-sm font-semibold text-white">
-                {(user?.displayName || user?.email || "U").charAt(0).toUpperCase()}
-              </span>
-            )}
+            <div className="relative" ref={dropdownRef}>
+              <button
+                onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
+                className="flex items-center gap-2 rounded-xl px-2 py-1.5 transition hover:bg-slate-100"
+              >
+                <span className="hidden text-sm text-ink-muted sm:inline">
+                  Halo, {user?.displayName || user?.email?.split("@")[0] || "Pengguna"}
+                </span>
+                {user?.photoURL ? (
+                  <img
+                    src={user.photoURL}
+                    alt={user.displayName || "User"}
+                    className="h-9 w-9 rounded-full object-cover border border-surface-border"
+                    referrerPolicy="no-referrer"
+                  />
+                ) : (
+                  <span className="grid h-9 w-9 place-items-center rounded-full bg-brand-600 text-sm font-semibold text-white">
+                    {(user?.displayName || user?.email || "U").charAt(0).toUpperCase()}
+                  </span>
+                )}
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  className={`text-ink-muted transition-transform ${profileDropdownOpen ? "rotate-180" : ""}`}
+                >
+                  <path d="m6 9 6 6 6-6" />
+                </svg>
+              </button>
+
+              {/* Dropdown Menu */}
+              {profileDropdownOpen && (
+                <div className="absolute right-0 top-full mt-2 w-56 rounded-xl border border-surface-border bg-white py-2 shadow-card animate-fade-in">
+                  <div className="border-b border-surface-border px-4 pb-3 pt-1">
+                    <p className="font-medium text-ink">{user?.displayName || "Pengguna"}</p>
+                    <p className="text-xs text-ink-muted truncate">{user?.email}</p>
+                  </div>
+                  <div className="py-1">
+                    <Link
+                      href="/dashboard/profile"
+                      onClick={() => setProfileDropdownOpen(false)}
+                      className="flex items-center gap-3 px-4 py-2.5 text-sm text-ink-muted transition hover:bg-slate-50 hover:text-ink"
+                    >
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                        <circle cx="12" cy="8" r="4" />
+                        <path d="M4 20c0-4 4-6 8-6s8 2 8 6" />
+                      </svg>
+                      Profil Saya
+                    </Link>
+                    <button
+                      onClick={openLogoutModal}
+                      className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-red-600 transition hover:bg-red-50"
+                    >
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M15 12H4m0 0 4-4m-4 4 4 4M9 4h9a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H9" />
+                      </svg>
+                      Keluar
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </header>
 
@@ -223,6 +305,36 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
           </div>
         </footer>
       </div>
+
+      {/* Logout Confirmation Modal */}
+      <Modal open={logoutModalOpen} title="Konfirmasi Keluar" onClose={() => setLogoutModalOpen(false)}>
+        <div className="text-center">
+          <span className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-red-50 text-red-500">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M15 12H4m0 0 4-4m-4 4 4 4M9 4h9a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H9" />
+            </svg>
+          </span>
+          <h3 className="mt-4 text-lg font-semibold text-ink">Yakin ingin keluar?</h3>
+          <p className="mt-2 text-sm text-ink-muted">
+            Kamu akan keluar dari akun dan perlu login kembali untuk mengakses dashboard.
+          </p>
+          <div className="mt-6 flex gap-3">
+            <Button
+              variant="secondary"
+              className="flex-1"
+              onClick={() => setLogoutModalOpen(false)}
+            >
+              Batal
+            </Button>
+            <button
+              onClick={handleLogout}
+              className="flex-1 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700"
+            >
+              Ya, Keluar
+            </button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }
