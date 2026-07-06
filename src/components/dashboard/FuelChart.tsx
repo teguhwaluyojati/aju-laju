@@ -1,4 +1,5 @@
 import { formatRupiah } from "../../utils/formatter";
+import { useT } from "../../hooks/useT";
 
 type FuelChartProps = {
   monthlyTotals: number[];
@@ -6,6 +7,7 @@ type FuelChartProps = {
 };
 
 export default function FuelChart({ monthlyTotals, labels }: FuelChartProps) {
+  const { t, locale } = useT();
   const maxValue = Math.max(...monthlyTotals, 1);
   const total = monthlyTotals.reduce((sum, value) => sum + value, 0);
   const average = monthlyTotals.length ? Math.round(total / monthlyTotals.length) : 0;
@@ -17,12 +19,12 @@ export default function FuelChart({ monthlyTotals, labels }: FuelChartProps) {
     <section className="rounded-2xl border border-surface-border bg-white p-5 shadow-soft sm:p-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h3 className="font-display text-lg text-ink">Grafik Bensin</h3>
-          <p className="text-sm text-ink-muted">Pengeluaran bensin per periode</p>
+          <h3 className="font-display text-lg text-ink">{t("Grafik Bensin", "Fuel Chart")}</h3>
+          <p className="text-sm text-ink-muted">{t("Pengeluaran bensin per periode", "Fuel spending by period")}</p>
         </div>
         <div className="text-right">
-          <p className="text-xs text-ink-subtle">Rata-rata</p>
-          <p className="font-semibold text-ink">{formatRupiah(average)}</p>
+          <p className="text-xs text-ink-subtle">{t("Rata-rata", "Average")}</p>
+          <p className="font-semibold text-ink">{formatRupiah(average, locale)}</p>
         </div>
       </div>
 
@@ -67,7 +69,7 @@ export default function FuelChart({ monthlyTotals, labels }: FuelChartProps) {
                   />
                 )}
                 <div className="pointer-events-none absolute bottom-full mb-2 rounded-md bg-ink px-2 py-1 text-xs text-white opacity-0 shadow-pop transition group-hover:opacity-100 whitespace-nowrap z-20">
-                  {formatRupiah(value)}
+                  {formatRupiah(value, locale)}
                 </div>
               </div>
             );

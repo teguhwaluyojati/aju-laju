@@ -5,9 +5,11 @@ import { updateProfile } from "firebase/auth";
 import Button from "../../../components/ui/Button";
 import Input from "../../../components/ui/Input";
 import { useAuth } from "../../../hooks/useAuth";
+import { useT } from "../../../hooks/useT";
 import { auth } from "../../../lib/firebase";
 
 export default function ProfilePage() {
+  const { t, locale } = useT();
   const { user } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -23,7 +25,7 @@ export default function ProfilePage() {
       await updateProfile(auth.currentUser, {
         displayName: displayName.trim() || null,
       });
-      setSuccessMessage("Profil berhasil diperbarui!");
+      setSuccessMessage(t("Profil berhasil diperbarui!", "Profile updated successfully!"));
       setIsEditing(false);
     } catch (error) {
       console.error("Error updating profile:", error);
@@ -33,7 +35,7 @@ export default function ProfilePage() {
   }
 
   const createdAt = user?.metadata?.creationTime
-    ? new Date(user.metadata.creationTime).toLocaleDateString("id-ID", {
+    ? new Date(user.metadata.creationTime).toLocaleDateString(locale === "en" ? "en-US" : "id-ID", {
         day: "numeric",
         month: "long",
         year: "numeric",
@@ -41,7 +43,7 @@ export default function ProfilePage() {
     : "-";
 
   const lastSignIn = user?.metadata?.lastSignInTime
-    ? new Date(user.metadata.lastSignInTime).toLocaleDateString("id-ID", {
+    ? new Date(user.metadata.lastSignInTime).toLocaleDateString(locale === "en" ? "en-US" : "id-ID", {
         day: "numeric",
         month: "long",
         year: "numeric",
@@ -53,8 +55,8 @@ export default function ProfilePage() {
   return (
     <div className="space-y-6 animate-fade-in">
       <div>
-        <h1 className="font-display text-2xl text-ink sm:text-3xl">Profil Saya</h1>
-        <p className="mt-1 text-sm text-ink-muted">Kelola informasi akun kamu.</p>
+        <h1 className="font-display text-2xl text-ink sm:text-3xl">{t("Profil Saya", "My Profile")}</h1>
+        <p className="mt-1 text-sm text-ink-muted">{t("Kelola informasi akun kamu.", "Manage your account information.")}</p>
       </div>
 
       {successMessage && (
@@ -80,11 +82,11 @@ export default function ProfilePage() {
           )}
           <div className="flex-1">
             <h2 className="font-display text-xl text-ink">
-              {user?.displayName || user?.email?.split("@")[0] || "Pengguna"}
+              {user?.displayName || user?.email?.split("@")[0] || t("Pengguna", "User")}
             </h2>
             <p className="text-sm text-ink-muted">{user?.email}</p>
             <p className="mt-2 text-xs text-ink-subtle">
-              Member sejak {createdAt}
+              {t("Member sejak", "Member since")} {createdAt}
             </p>
           </div>
           {!isEditing && (
@@ -92,7 +94,7 @@ export default function ProfilePage() {
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
               </svg>
-              Edit Profil
+              {t("Edit Profil", "Edit Profile")}
             </Button>
           )}
         </div>
@@ -103,11 +105,11 @@ export default function ProfilePage() {
             <div className="max-w-md space-y-4">
               <div className="space-y-1.5">
                 <label className="block text-sm font-medium text-ink" htmlFor="displayName">
-                  Nama Tampilan
+                  {t("Nama Tampilan", "Display Name")}
                 </label>
                 <Input
                   id="displayName"
-                  placeholder="Masukkan nama kamu"
+                  placeholder={t("Masukkan nama kamu", "Enter your name")}
                   value={displayName}
                   onChange={(e) => setDisplayName(e.target.value)}
                 />
@@ -121,7 +123,7 @@ export default function ProfilePage() {
                   disabled
                   className="bg-slate-50 cursor-not-allowed"
                 />
-                <p className="text-xs text-ink-subtle">Email tidak dapat diubah.</p>
+                <p className="text-xs text-ink-subtle">{t("Email tidak dapat diubah.", "Email cannot be changed.")}</p>
               </div>
               <div className="flex gap-3 pt-2">
                 <Button
@@ -132,10 +134,10 @@ export default function ProfilePage() {
                   }}
                   disabled={saving}
                 >
-                  Batal
+                  {t("Batal", "Cancel")}
                 </Button>
                 <Button onClick={handleSaveProfile} disabled={saving}>
-                  {saving ? "Menyimpan..." : "Simpan Perubahan"}
+                  {saving ? t("Menyimpan...", "Saving...") : t("Simpan Perubahan", "Save Changes")}
                 </Button>
               </div>
             </div>
@@ -145,28 +147,28 @@ export default function ProfilePage() {
 
       {/* Account Info */}
       <div className="rounded-2xl border border-surface-border bg-white p-6 shadow-soft">
-        <h3 className="font-display text-lg text-ink">Informasi Akun</h3>
+        <h3 className="font-display text-lg text-ink">{t("Informasi Akun", "Account Information")}</h3>
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
           <div>
             <p className="text-xs uppercase tracking-wide text-ink-subtle">User ID</p>
             <p className="mt-1 text-sm font-mono text-ink-muted">{user?.uid || "-"}</p>
           </div>
           <div>
-            <p className="text-xs uppercase tracking-wide text-ink-subtle">Metode Login</p>
+            <p className="text-xs uppercase tracking-wide text-ink-subtle">{t("Metode Login", "Sign-in Method")}</p>
             <p className="mt-1 text-sm text-ink-muted">
               {user?.providerData?.[0]?.providerId === "google.com"
                 ? "Google"
                 : user?.providerData?.[0]?.providerId === "facebook.com"
                 ? "Facebook"
-                : "Email/Password"}
+                : t("Email/Password", "Email/Password")}
             </p>
           </div>
           <div>
-            <p className="text-xs uppercase tracking-wide text-ink-subtle">Terdaftar Sejak</p>
+            <p className="text-xs uppercase tracking-wide text-ink-subtle">{t("Terdaftar Sejak", "Registered Since")}</p>
             <p className="mt-1 text-sm text-ink-muted">{createdAt}</p>
           </div>
           <div>
-            <p className="text-xs uppercase tracking-wide text-ink-subtle">Login Terakhir</p>
+            <p className="text-xs uppercase tracking-wide text-ink-subtle">{t("Login Terakhir", "Last Sign-in")}</p>
             <p className="mt-1 text-sm text-ink-muted">{lastSignIn}</p>
           </div>
         </div>

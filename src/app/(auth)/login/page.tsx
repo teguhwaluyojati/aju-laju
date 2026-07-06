@@ -7,23 +7,29 @@ import { signInWithEmailAndPassword, signInWithPopup } from "firebase/auth";
 import Logo from "../../../components/ui/Logo";
 import { auth, firebaseConfigError, isFirebaseConfigured, googleProvider, facebookProvider } from "../../../lib/firebase";
 import { useAuth } from "../../../hooks/useAuth";
-
-function getReadableFirebaseError(code: string): string {
-  const messageMap: Record<string, string> = {
-    "auth/invalid-email": "Format email tidak valid.",
-    "auth/invalid-credential": "Email atau password salah.",
-    "auth/user-disabled": "Akun ini dinonaktifkan.",
-    "auth/too-many-requests": "Terlalu banyak percobaan login. Coba lagi nanti.",
-    "auth/popup-closed-by-user": "Popup login ditutup. Silakan coba lagi.",
-    "auth/cancelled-popup-request": "Login dibatalkan.",
-    "auth/account-exists-with-different-credential": "Akun sudah terdaftar dengan metode login lain.",
-  };
-
-  return messageMap[code] ?? "Login gagal. Silakan coba lagi.";
-}
+import { useT } from "../../../hooks/useT";
 
 export default function LoginPage() {
+  const { t, locale } = useT();
   const router = useRouter();
+    function localizePath(path: string): string {
+      return path === "/" ? `/${locale}` : `/${locale}${path}`;
+    }
+
+    function getReadableFirebaseError(code: string): string {
+      const messageMap: Record<string, string> = {
+        "auth/invalid-email": t("Format email tidak valid.", "Invalid email format."),
+        "auth/invalid-credential": t("Email atau password salah.", "Incorrect email or password."),
+        "auth/user-disabled": t("Akun ini dinonaktifkan.", "This account has been disabled."),
+        "auth/too-many-requests": t("Terlalu banyak percobaan login. Coba lagi nanti.", "Too many login attempts. Try again later."),
+        "auth/popup-closed-by-user": t("Popup login ditutup. Silakan coba lagi.", "Login popup closed. Please try again."),
+        "auth/cancelled-popup-request": t("Login dibatalkan.", "Login cancelled."),
+        "auth/account-exists-with-different-credential": t("Akun sudah terdaftar dengan metode login lain.", "Account exists with a different sign-in method."),
+      };
+
+      return messageMap[code] ?? t("Login gagal. Silakan coba lagi.", "Login failed. Please try again.");
+    }
+
   const { isAuthenticated, loading: authLoading } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -40,9 +46,9 @@ export default function LoginPage() {
   // Redirect if already logged in
   useEffect(() => {
     if (!authLoading && isAuthenticated) {
-      router.replace("/dashboard");
+      router.replace(localizePath("/dashboard"));
     }
-  }, [authLoading, isAuthenticated, router]);
+  }, [authLoading, isAuthenticated, router, locale]);
 
   const isFormInvalid = useMemo(() => {
     return email.trim().length === 0 || password.trim().length < 6;
@@ -66,12 +72,12 @@ export default function LoginPage() {
     setErrorMessage("");
 
     if (!auth || !isFirebaseConfigured) {
-      setErrorMessage(firebaseConfigError || "Firebase belum dikonfigurasi.");
+      setErrorMessage(firebaseConfigError || t("Firebase belum dikonfigurasi.", "Firebase is not configured."));
       return;
     }
 
     if (isFormInvalid) {
-      setErrorMessage("Email dan password minimal 6 karakter wajib diisi.");
+      setErrorMessage(t("Email dan password minimal 6 karakter wajib diisi.", "Email and password (min 6 characters) are required."));
       return;
     }
 
@@ -79,7 +85,7 @@ export default function LoginPage() {
 
     try {
       await signInWithEmailAndPassword(auth, email.trim(), password);
-      router.push("/dashboard");
+      router.push(localizePath("/dashboard"));
     } catch (error) {
       const firebaseError = error as { code?: string };
       setErrorMessage(getReadableFirebaseError(firebaseError.code ?? ""));
@@ -94,7 +100,7 @@ export default function LoginPage() {
     setIsSubmitting(true);
     try {
       await signInWithPopup(auth, googleProvider);
-      router.push("/dashboard");
+      router.push(localizePath("/dashboard"));
     } catch (error) {
       const firebaseError = error as { code?: string };
       if (firebaseError.code !== "auth/popup-closed-by-user") {
@@ -111,7 +117,7 @@ export default function LoginPage() {
     setIsSubmitting(true);
     try {
       await signInWithPopup(auth, facebookProvider);
-      router.push("/dashboard");
+      router.push(localizePath("/dashboard"));
     } catch (error) {
       const firebaseError = error as { code?: string };
       if (firebaseError.code !== "auth/popup-closed-by-user") {
@@ -158,7 +164,7 @@ export default function LoginPage() {
                   </svg>
                 </span>
                 <div>
-                  <p className="text-sm font-medium opacity-80">Ganti Oli</p>
+                  <p className="text-sm font-medium opacity-80">{t("Ganti Oli", "Oil Change")}</p>
                   <p className="text-lg font-bold">Rp 125.000</p>
                 </div>
               </div>
@@ -188,7 +194,7 @@ export default function LoginPage() {
                   </svg>
                 </span>
                 <div>
-                  <p className="text-sm font-medium opacity-80">Total Bulan Ini</p>
+                  <p className="text-sm font-medium opacity-80">{t("Total Bulan Ini", "Total This Month")}</p>
                   <p className="text-lg font-bold">Rp 850.000</p>
                 </div>
               </div>
@@ -196,21 +202,21 @@ export default function LoginPage() {
           </div>
 
           <h2 className="font-display text-4xl leading-tight">
-            Kelola pengeluaran<br />kendaraanmu dengan<br /><span className="text-brand-200">mudah & rapi</span>
+            {t("Kelola pengeluaran", "Manage your")}<br />{t("kendaraanmu dengan", "vehicle expenses in a")}<br /><span className="text-brand-200">{t("mudah & rapi", "clean and easy way")}</span>
           </h2>
           <p className="mt-6 text-lg leading-relaxed text-white/80">
-            Catat servis, bensin, dan pantau semua pengeluaran kendaraanmu dalam satu aplikasi yang simpel.
+            {t("Catat servis, bensin, dan pantau semua pengeluaran kendaraanmu dalam satu aplikasi yang simpel.", "Log service, fuel, and track all vehicle expenses in one simple app.")}
           </p>
 
           {/* Stats */}
           <div className="mt-10 flex gap-8">
             <div>
               <p className="font-display text-3xl font-bold">2.5K+</p>
-              <p className="text-sm text-white/70">Pengguna Aktif</p>
+              <p className="text-sm text-white/70">{t("Pengguna Aktif", "Active Users")}</p>
             </div>
             <div>
               <p className="font-display text-3xl font-bold">50K+</p>
-              <p className="text-sm text-white/70">Catatan Dibuat</p>
+              <p className="text-sm text-white/70">{t("Catatan Dibuat", "Records Created")}</p>
             </div>
             <div>
               <p className="font-display text-3xl font-bold">4.9</p>
@@ -224,15 +230,15 @@ export default function LoginPage() {
       <div className="relative flex w-full flex-col lg:w-1/2">
         {/* Header */}
         <header className="flex items-center justify-between p-6 lg:p-8">
-          <Link href="/" aria-label="Kembali ke beranda" className="transition-transform hover:scale-105">
+          <Link href={localizePath("/")} aria-label={t("Kembali ke beranda", "Back to home")} className="transition-transform hover:scale-105">
             <Logo />
           </Link>
           <Link
-            href="/register"
+            href={localizePath("/register")}
             className="group flex items-center gap-2 rounded-full bg-white/80 px-4 py-2 text-sm font-medium text-ink-muted shadow-soft backdrop-blur-sm transition-all hover:bg-white hover:text-ink hover:shadow-md"
           >
-            <span>Belum punya akun?</span>
-            <span className="text-brand-700 transition-transform group-hover:translate-x-0.5">Daftar →</span>
+            <span>{t("Belum punya akun?", "No account yet?")}</span>
+            <span className="text-brand-700 transition-transform group-hover:translate-x-0.5">{t("Daftar", "Sign up")} →</span>
           </Link>
         </header>
 
@@ -243,10 +249,10 @@ export default function LoginPage() {
             <div className="mb-8 text-center lg:text-left">
               <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-brand-50 px-4 py-1.5 text-sm font-medium text-brand-700">
                 <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-brand-500"></span>
-                Selamat datang kembali
+                {t("Selamat datang kembali", "Welcome back")}
               </div>
-              <h1 className="font-display text-3xl text-ink sm:text-4xl">Masuk ke akun</h1>
-              <p className="mt-2 text-ink-muted">Lanjutkan pencatatan kendaraanmu yang terakhir.</p>
+              <h1 className="font-display text-3xl text-ink sm:text-4xl">{t("Masuk ke akun", "Sign in to your account")}</h1>
+              <p className="mt-2 text-ink-muted">{t("Lanjutkan pencatatan kendaraanmu yang terakhir.", "Continue where you left off.")}</p>
             </div>
 
             {/* Login Card */}
@@ -323,7 +329,7 @@ export default function LoginPage() {
                         : "top-3.5 text-sm text-ink-muted"
                     }`}
                   >
-                    Password
+                    {t("Password", "Password")}
                   </label>
                   <div className="relative">
                     <input
@@ -363,7 +369,7 @@ export default function LoginPage() {
                     </button>
                   </div>
                   {password && password.length < 6 && (
-                    <p className="mt-1.5 text-xs text-amber-600">Minimal 6 karakter</p>
+                    <p className="mt-1.5 text-xs text-amber-600">{t("Minimal 6 karakter", "Minimum 6 characters")}</p>
                   )}
                 </div>
 
@@ -387,9 +393,9 @@ export default function LoginPage() {
                       ))}
                     </div>
                     <p className="text-xs text-ink-subtle">
-                      Kekuatan password:{" "}
+                      {t("Kekuatan password", "Password strength")}:{" "}
                       <span className={password.length >= 12 ? "text-emerald-600" : password.length >= 8 ? "text-brand-600" : password.length >= 6 ? "text-amber-600" : "text-red-500"}>
-                        {password.length >= 12 ? "Sangat Kuat" : password.length >= 8 ? "Kuat" : password.length >= 6 ? "Sedang" : "Lemah"}
+                        {password.length >= 12 ? t("Sangat Kuat", "Very Strong") : password.length >= 8 ? t("Kuat", "Strong") : password.length >= 6 ? t("Sedang", "Medium") : t("Lemah", "Weak")}
                       </span>
                     </p>
                   </div>
@@ -418,7 +424,7 @@ export default function LoginPage() {
                   }`}
                 >
                   <span className={`flex items-center justify-center gap-2 transition-all ${isSubmitting ? "opacity-0" : "opacity-100"}`}>
-                    Masuk
+                    {t("Masuk", "Sign In")}
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="transition-transform group-hover:translate-x-1">
                       <path d="M5 12h14M12 5l7 7-7 7" />
                     </svg>
@@ -437,7 +443,7 @@ export default function LoginPage() {
               {/* Divider */}
               <div className="my-6 flex items-center gap-4">
                 <div className="h-px flex-1 bg-slate-200" />
-                <span className="text-xs font-medium text-ink-subtle">atau masuk dengan</span>
+                <span className="text-xs font-medium text-ink-subtle">{t("atau masuk dengan", "or continue with")}</span>
                 <div className="h-px flex-1 bg-slate-200" />
               </div>
 
@@ -474,16 +480,16 @@ export default function LoginPage() {
             {/* Footer */}
             <div className="mt-6 text-center">
               <p className="text-sm text-ink-muted">
-                Belum punya akun?{" "}
-                <Link className="font-semibold text-brand-700 underline-offset-4 hover:underline" href="/register">
-                  Daftar gratis
+                {t("Belum punya akun?", "No account yet?")} {" "}
+                <Link className="font-semibold text-brand-700 underline-offset-4 hover:underline" href={localizePath("/register")}>
+                  {t("Daftar gratis", "Sign up for free")}
                 </Link>
               </p>
               <p className="mt-4 text-xs text-ink-subtle">
-                Dengan masuk, kamu menyetujui{" "}
-                <Link href="#" className="underline hover:text-ink-muted">Syarat & Ketentuan</Link>{" "}
-                serta{" "}
-                <Link href="#" className="underline hover:text-ink-muted">Kebijakan Privasi</Link>{" "}
+                {t("Dengan masuk, kamu menyetujui", "By signing in, you agree to")}{" "}
+                <Link href="#" className="underline hover:text-ink-muted">{t("Syarat & Ketentuan", "Terms & Conditions")}</Link>{" "}
+                {t("serta", "and")}{" "}
+                <Link href="#" className="underline hover:text-ink-muted">{t("Kebijakan Privasi", "Privacy Policy")}</Link>{" "}
                 AjuLaju.
               </p>
             </div>

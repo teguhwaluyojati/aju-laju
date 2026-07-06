@@ -6,6 +6,7 @@ import Button from "../../../components/ui/Button";
 import Input from "../../../components/ui/Input";
 import Modal from "../../../components/ui/Modal";
 import { useAuth } from "../../../hooks/useAuth";
+import { useT } from "../../../hooks/useT";
 import { getVehicles, createVehicle, updateVehicle, deleteVehicle, getServiceRecords, getFuelRecords } from "../../../lib/firestore";
 import type { Vehicle, VehicleInput } from "../../../types";
 
@@ -15,6 +16,7 @@ type VehicleWithStats = Vehicle & {
 };
 
 export default function VehiclesPage() {
+  const { t, locale } = useT();
   const { user } = useAuth();
   const [vehicles, setVehicles] = useState<VehicleWithStats[]>([]);
   const [loading, setLoading] = useState(true);
@@ -32,6 +34,7 @@ export default function VehiclesPage() {
     year: new Date().getFullYear(),
     color: "",
     odometer: 0,
+    serviceInterval: 5000,
   });
   const [newVehicle, setNewVehicle] = useState({
     name: "",
@@ -41,6 +44,7 @@ export default function VehiclesPage() {
     year: new Date().getFullYear(),
     color: "",
     odometer: 0,
+    serviceInterval: 5000,
   });
 
   useEffect(() => {
@@ -80,8 +84,9 @@ export default function VehiclesPage() {
         type: newVehicle.type,
         brand: newVehicle.brand,
         year: newVehicle.year,
-        color: newVehicle.color || "Tidak disebutkan",
+        color: newVehicle.color || t("Tidak disebutkan", "Not specified"),
         odometer: newVehicle.odometer,
+        serviceInterval: newVehicle.serviceInterval,
       });
       
       // Refresh list
@@ -97,10 +102,11 @@ export default function VehiclesPage() {
         year: new Date().getFullYear(),
         color: "",
         odometer: 0,
+        serviceInterval: 5000,
       });
     } catch (error) {
       console.error("Error adding vehicle:", error);
-      alert("Gagal menambahkan kendaraan. Silakan coba lagi.");
+      alert(t("Gagal menambahkan kendaraan. Silakan coba lagi.", "Failed to add vehicle. Please try again."));
     } finally {
       setSaving(false);
     }
@@ -118,6 +124,7 @@ export default function VehiclesPage() {
       year: vehicle.year,
       color: vehicle.color || "",
       odometer: vehicle.odometer || 0,
+      serviceInterval: vehicle.serviceInterval || 5000,
     });
     setIsEditModalOpen(true);
   }
@@ -139,8 +146,9 @@ export default function VehiclesPage() {
         type: editVehicle.type,
         brand: editVehicle.brand,
         year: editVehicle.year,
-        color: editVehicle.color || "Tidak disebutkan",
+        color: editVehicle.color || t("Tidak disebutkan", "Not specified"),
         odometer: editVehicle.odometer,
+        serviceInterval: editVehicle.serviceInterval,
       });
       
       // Refresh list
@@ -158,7 +166,7 @@ export default function VehiclesPage() {
       setIsEditModalOpen(false);
     } catch (error) {
       console.error("Error updating vehicle:", error);
-      alert("Gagal memperbarui kendaraan. Silakan coba lagi.");
+      alert(t("Gagal memperbarui kendaraan. Silakan coba lagi.", "Failed to update vehicle. Please try again."));
     } finally {
       setSaving(false);
     }
@@ -176,7 +184,7 @@ export default function VehiclesPage() {
       setSelectedVehicle(null);
     } catch (error) {
       console.error("Error deleting vehicle:", error);
-      alert("Gagal menghapus kendaraan. Silakan coba lagi.");
+      alert(t("Gagal menghapus kendaraan. Silakan coba lagi.", "Failed to delete vehicle. Please try again."));
     } finally {
       setSaving(false);
     }
@@ -195,14 +203,14 @@ export default function VehiclesPage() {
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="font-display text-2xl text-ink sm:text-3xl">Kendaraan Saya</h1>
-          <p className="mt-1 text-sm text-ink-muted">Kelola semua kendaraan yang kamu miliki.</p>
+          <h1 className="font-display text-2xl text-ink sm:text-3xl">{t("Kendaraan Saya", "My Vehicles")}</h1>
+          <p className="mt-1 text-sm text-ink-muted">{t("Kelola semua kendaraan yang kamu miliki.", "Manage all your vehicles.")}</p>
         </div>
         <Button onClick={() => setIsModalOpen(true)}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
             <path d="M12 5v14M5 12h14" />
           </svg>
-          Tambah Kendaraan
+          {t("Tambah Kendaraan", "Add Vehicle")}
         </Button>
       </div>
 
@@ -216,10 +224,10 @@ export default function VehiclesPage() {
               <circle cx="17" cy="17" r="2" />
             </svg>
           </span>
-          <h3 className="mt-4 font-semibold text-ink">Belum ada kendaraan</h3>
-          <p className="mt-1 text-sm text-ink-muted">Tambahkan kendaraan pertamamu untuk mulai mencatat.</p>
+          <h3 className="mt-4 font-semibold text-ink">{t("Belum ada kendaraan", "No vehicles yet")}</h3>
+          <p className="mt-1 text-sm text-ink-muted">{t("Tambahkan kendaraan pertamamu untuk mulai mencatat.", "Add your first vehicle to start tracking.")}</p>
           <Button className="mt-4" onClick={() => setIsModalOpen(true)}>
-            Tambah Kendaraan
+            {t("Tambah Kendaraan", "Add Vehicle")}
           </Button>
         </div>
       ) : (
@@ -251,7 +259,7 @@ export default function VehiclesPage() {
                 </button>
               </div>
 
-              <Link href={`/dashboard/vehicles/${vehicle.id}`} className="block">
+              <Link href={`/${locale}/dashboard/vehicles/${vehicle.id}`} className="block">
                 <span
                   className={`grid h-12 w-12 place-items-center rounded-xl ${
                     vehicle.type === "car"
@@ -279,8 +287,8 @@ export default function VehiclesPage() {
                 <p className="mt-1 text-xs text-ink-subtle">{vehicle.plateNumber} • {vehicle.year}</p>
 
                 <div className="mt-4 flex gap-4 border-t border-surface-border pt-4 text-xs text-ink-muted">
-                  <span>{vehicle.totalService} servis</span>
-                  <span>{vehicle.totalFuel} isi bensin</span>
+                  <span>{vehicle.totalService} {t("servis", "services")}</span>
+                  <span>{vehicle.totalFuel} {t("isi bensin", "fuel fills")}</span>
                 </div>
               </Link>
             </div>
@@ -289,7 +297,7 @@ export default function VehiclesPage() {
       )}
 
       {/* Add Vehicle Modal */}
-      <Modal open={isModalOpen} title="Tambah Kendaraan Baru" onClose={() => setIsModalOpen(false)}>
+      <Modal open={isModalOpen} title={t("Tambah Kendaraan Baru", "Add New Vehicle")} onClose={() => setIsModalOpen(false)}>
         <form
           className="space-y-4"
           onSubmit={(e) => {
@@ -299,11 +307,11 @@ export default function VehiclesPage() {
         >
           <div className="space-y-1.5">
             <label className="block text-sm font-medium text-ink" htmlFor="vehicleName">
-              Nama Kendaraan
+              {t("Nama Kendaraan", "Vehicle Name")}
             </label>
             <Input
               id="vehicleName"
-              placeholder="Contoh: Vario Hitam"
+              placeholder={t("Contoh: Vario Hitam", "Example: Black Vario")}
               value={newVehicle.name}
               onChange={(e) => setNewVehicle({ ...newVehicle, name: e.target.value })}
               required
@@ -312,11 +320,11 @@ export default function VehiclesPage() {
 
           <div className="space-y-1.5">
             <label className="block text-sm font-medium text-ink" htmlFor="vehiclePlate">
-              Plat Nomor
+              {t("Plat Nomor", "Plate Number")}
             </label>
             <Input
               id="vehiclePlate"
-              placeholder="Contoh: B 1234 ABC"
+              placeholder={t("Contoh: B 1234 ABC", "Example: B 1234 ABC")}
               value={newVehicle.plateNumber}
               onChange={(e) => setNewVehicle({ ...newVehicle, plateNumber: e.target.value })}
               required
@@ -324,7 +332,7 @@ export default function VehiclesPage() {
           </div>
 
           <div className="space-y-1.5">
-            <label className="block text-sm font-medium text-ink">Tipe Kendaraan</label>
+            <label className="block text-sm font-medium text-ink">{t("Tipe Kendaraan", "Vehicle Type")}</label>
             <div className="flex gap-3">
               <button
                 type="button"
@@ -340,7 +348,7 @@ export default function VehiclesPage() {
                   <path d="M12 15V5l4 2v4" />
                   <circle cx="12" cy="5" r="1" />
                 </svg>
-                Motor
+                {t("Motor", "Motorcycle")}
               </button>
               <button
                 type="button"
@@ -356,18 +364,18 @@ export default function VehiclesPage() {
                   <circle cx="7" cy="17" r="2" />
                   <circle cx="17" cy="17" r="2" />
                 </svg>
-                Mobil
+                {t("Mobil", "Car")}
               </button>
             </div>
           </div>
 
           <div className="space-y-1.5">
             <label className="block text-sm font-medium text-ink" htmlFor="vehicleBrand">
-              Merek & Tipe
+              {t("Merek & Tipe", "Brand & Model")}
             </label>
             <Input
               id="vehicleBrand"
-              placeholder="Contoh: Honda Vario 160"
+              placeholder={t("Contoh: Honda Vario 160", "Example: Honda Vario 160")}
               value={newVehicle.brand}
               onChange={(e) => setNewVehicle({ ...newVehicle, brand: e.target.value })}
               required
@@ -376,7 +384,7 @@ export default function VehiclesPage() {
 
           <div className="space-y-1.5">
             <label className="block text-sm font-medium text-ink" htmlFor="vehicleYear">
-              Tahun
+              {t("Tahun", "Year")}
             </label>
             <Input
               id="vehicleYear"
@@ -390,19 +398,39 @@ export default function VehiclesPage() {
             />
           </div>
 
+          <div className="space-y-1.5">
+            <label className="block text-sm font-medium text-ink" htmlFor="serviceInterval">
+              {t("Pengingat Servis (per KM)", "Service Reminder (per KM)")}
+            </label>
+            <select
+              id="serviceInterval"
+              className="w-full rounded-xl border border-surface-border bg-white px-4 py-2.5 text-sm text-ink outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+              value={newVehicle.serviceInterval}
+              onChange={(e) => setNewVehicle({ ...newVehicle, serviceInterval: parseInt(e.target.value) })}
+            >
+              <option value={0}>{t("Tidak ada pengingat", "No reminder")}</option>
+              <option value={1000}>{t("Setiap 1.000 KM", "Every 1,000 KM")}</option>
+              <option value={2000}>{t("Setiap 2.000 KM", "Every 2,000 KM")}</option>
+              <option value={3000}>{t("Setiap 3.000 KM", "Every 3,000 KM")}</option>
+              <option value={5000}>{t("Setiap 5.000 KM", "Every 5,000 KM")}</option>
+              <option value={10000}>{t("Setiap 10.000 KM", "Every 10,000 KM")}</option>
+            </select>
+            <p className="text-xs text-ink-muted">{t("Notifikasi akan muncul saat 500 KM sebelum waktunya servis", "A notification appears when 500 KM remains before service")}</p>
+          </div>
+
           <div className="flex gap-3 pt-2">
             <Button type="button" variant="secondary" className="flex-1" onClick={() => setIsModalOpen(false)} disabled={saving}>
-              Batal
+              {t("Batal", "Cancel")}
             </Button>
             <Button type="submit" className="flex-1" disabled={saving}>
-              {saving ? "Menyimpan..." : "Simpan"}
+              {saving ? t("Menyimpan...", "Saving...") : t("Simpan", "Save")}
             </Button>
           </div>
         </form>
       </Modal>
 
       {/* Edit Vehicle Modal */}
-      <Modal open={isEditModalOpen} title="Edit Kendaraan" onClose={() => setIsEditModalOpen(false)}>
+      <Modal open={isEditModalOpen} title={t("Edit Kendaraan", "Edit Vehicle")} onClose={() => setIsEditModalOpen(false)}>
         <form
           className="space-y-4"
           onSubmit={(e) => {
@@ -412,11 +440,11 @@ export default function VehiclesPage() {
         >
           <div className="space-y-1.5">
             <label className="block text-sm font-medium text-ink" htmlFor="editVehicleName">
-              Nama Kendaraan
+              {t("Nama Kendaraan", "Vehicle Name")}
             </label>
             <Input
               id="editVehicleName"
-              placeholder="Contoh: Vario Hitam"
+              placeholder={t("Contoh: Vario Hitam", "Example: Black Vario")}
               value={editVehicle.name}
               onChange={(e) => setEditVehicle({ ...editVehicle, name: e.target.value })}
               required
@@ -425,11 +453,11 @@ export default function VehiclesPage() {
 
           <div className="space-y-1.5">
             <label className="block text-sm font-medium text-ink" htmlFor="editVehiclePlate">
-              Plat Nomor
+              {t("Plat Nomor", "Plate Number")}
             </label>
             <Input
               id="editVehiclePlate"
-              placeholder="Contoh: B 1234 ABC"
+              placeholder={t("Contoh: B 1234 ABC", "Example: B 1234 ABC")}
               value={editVehicle.plateNumber}
               onChange={(e) => setEditVehicle({ ...editVehicle, plateNumber: e.target.value })}
               required
@@ -437,7 +465,7 @@ export default function VehiclesPage() {
           </div>
 
           <div className="space-y-1.5">
-            <label className="block text-sm font-medium text-ink">Tipe Kendaraan</label>
+            <label className="block text-sm font-medium text-ink">{t("Tipe Kendaraan", "Vehicle Type")}</label>
             <div className="flex gap-3">
               <button
                 type="button"
@@ -453,7 +481,7 @@ export default function VehiclesPage() {
                   <path d="M12 15V5l4 2v4" />
                   <circle cx="12" cy="5" r="1" />
                 </svg>
-                Motor
+                {t("Motor", "Motorcycle")}
               </button>
               <button
                 type="button"
@@ -469,18 +497,18 @@ export default function VehiclesPage() {
                   <circle cx="7" cy="17" r="2" />
                   <circle cx="17" cy="17" r="2" />
                 </svg>
-                Mobil
+                {t("Mobil", "Car")}
               </button>
             </div>
           </div>
 
           <div className="space-y-1.5">
             <label className="block text-sm font-medium text-ink" htmlFor="editVehicleBrand">
-              Merek & Tipe
+              {t("Merek & Tipe", "Brand & Model")}
             </label>
             <Input
               id="editVehicleBrand"
-              placeholder="Contoh: Honda Vario 160"
+              placeholder={t("Contoh: Honda Vario 160", "Example: Honda Vario 160")}
               value={editVehicle.brand}
               onChange={(e) => setEditVehicle({ ...editVehicle, brand: e.target.value })}
               required
@@ -489,7 +517,7 @@ export default function VehiclesPage() {
 
           <div className="space-y-1.5">
             <label className="block text-sm font-medium text-ink" htmlFor="editVehicleYear">
-              Tahun
+                {t("Tahun", "Year")}
             </label>
             <Input
               id="editVehicleYear"
@@ -503,19 +531,39 @@ export default function VehiclesPage() {
             />
           </div>
 
+          <div className="space-y-1.5">
+            <label className="block text-sm font-medium text-ink" htmlFor="editServiceInterval">
+              {t("Pengingat Servis (per KM)", "Service Reminder (per KM)")}
+            </label>
+            <select
+              id="editServiceInterval"
+              className="w-full rounded-xl border border-surface-border bg-white px-4 py-2.5 text-sm text-ink outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+              value={editVehicle.serviceInterval || 0}
+              onChange={(e) => setEditVehicle({ ...editVehicle, serviceInterval: parseInt(e.target.value) })}
+            >
+              <option value={0}>{t("Tidak ada pengingat", "No reminder")}</option>
+              <option value={1000}>{t("Setiap 1.000 KM", "Every 1,000 KM")}</option>
+              <option value={2000}>{t("Setiap 2.000 KM", "Every 2,000 KM")}</option>
+              <option value={3000}>{t("Setiap 3.000 KM", "Every 3,000 KM")}</option>
+              <option value={5000}>{t("Setiap 5.000 KM", "Every 5,000 KM")}</option>
+              <option value={10000}>{t("Setiap 10.000 KM", "Every 10,000 KM")}</option>
+            </select>
+            <p className="text-xs text-ink-muted">{t("Notifikasi akan muncul saat 500 KM sebelum waktunya servis", "A notification appears when 500 KM remains before service")}</p>
+          </div>
+
           <div className="flex gap-3 pt-2">
             <Button type="button" variant="secondary" className="flex-1" onClick={() => setIsEditModalOpen(false)} disabled={saving}>
-              Batal
+              {t("Batal", "Cancel")}
             </Button>
             <Button type="submit" className="flex-1" disabled={saving}>
-              {saving ? "Menyimpan..." : "Simpan Perubahan"}
+              {saving ? t("Menyimpan...", "Saving...") : t("Simpan Perubahan", "Save Changes")}
             </Button>
           </div>
         </form>
       </Modal>
 
       {/* Delete Confirmation Modal */}
-      <Modal open={isDeleteModalOpen} title="Hapus Kendaraan" onClose={() => setIsDeleteModalOpen(false)}>
+      <Modal open={isDeleteModalOpen} title={t("Hapus Kendaraan", "Delete Vehicle")} onClose={() => setIsDeleteModalOpen(false)}>
         <div className="text-center">
           <span className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-red-50 text-red-500">
             <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -523,10 +571,10 @@ export default function VehiclesPage() {
             </svg>
           </span>
           <h3 className="mt-4 text-lg font-semibold text-ink">
-            Hapus {selectedVehicle?.name}?
+            {t("Hapus", "Delete")} {selectedVehicle?.name}?
           </h3>
           <p className="mt-2 text-sm text-ink-muted">
-            Kendaraan ini akan dihapus secara permanen. Aksi ini tidak dapat dibatalkan.
+            {t("Kendaraan ini akan dihapus secara permanen. Aksi ini tidak dapat dibatalkan.", "This vehicle will be permanently deleted. This action cannot be undone.")}
           </p>
           <div className="mt-6 flex gap-3">
             <Button
@@ -535,14 +583,14 @@ export default function VehiclesPage() {
               onClick={() => setIsDeleteModalOpen(false)}
               disabled={saving}
             >
-              Batal
+              {t("Batal", "Cancel")}
             </Button>
             <button
               onClick={handleDeleteVehicle}
               disabled={saving}
               className="flex-1 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700 disabled:opacity-50"
             >
-              {saving ? "Menghapus..." : "Ya, Hapus"}
+              {saving ? t("Menghapus...", "Deleting...") : t("Ya, Hapus", "Yes, Delete")}
             </button>
           </div>
         </div>

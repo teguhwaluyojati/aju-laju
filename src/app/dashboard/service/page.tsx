@@ -7,12 +7,14 @@ import Input from "../../../components/ui/Input";
 import Modal from "../../../components/ui/Modal";
 import { formatRupiah, formatServiceDate } from "../../../utils/formatter";
 import { useAuth } from "../../../hooks/useAuth";
+import { useT } from "../../../hooks/useT";
 import { getServiceRecords, getVehicles, createServiceRecord } from "../../../lib/firestore";
 import type { ServiceRecord, Vehicle } from "../../../types";
 
 type ServiceWithVehicle = ServiceRecord & { vehicleName: string };
 
 export default function ServiceHistoryPage() {
+  const { t, locale } = useT();
   const { user } = useAuth();
   const [services, setServices] = useState<ServiceWithVehicle[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
@@ -26,6 +28,7 @@ export default function ServiceHistoryPage() {
     cost: 0,
     location: "",
     description: "",
+    odometer: 0,
   });
 
   useEffect(() => {
@@ -36,12 +39,12 @@ export default function ServiceHistoryPage() {
           getServiceRecords(user.uid),
           getVehicles(user.uid),
         ]);
-        
+
         setVehicles(vehicleList);
         setServices(
           serviceList.map((s) => ({
             ...s,
-            vehicleName: vehicleList.find((v) => v.id === s.vehicleId)?.name || "Kendaraan Dihapus",
+            vehicleName: vehicleList.find((v) => v.id === s.vehicleId)?.name || t("Kendaraan Dihapus", "Deleted Vehicle"),
           }))
         );
       } catch (error) {
@@ -51,7 +54,7 @@ export default function ServiceHistoryPage() {
       }
     }
     fetchData();
-  }, [user]);
+  }, [user, t]);
 
   async function handleAddService() {
     if (!user || !newService.vehicleId) return;
@@ -64,17 +67,17 @@ export default function ServiceHistoryPage() {
         cost: newService.cost,
         location: newService.location,
         description: newService.description,
+        odometer: newService.odometer,
       });
-      
-      // Refresh list
+
       const serviceList = await getServiceRecords(user.uid);
       setServices(
         serviceList.map((s) => ({
           ...s,
-          vehicleName: vehicles.find((v) => v.id === s.vehicleId)?.name || "Kendaraan Dihapus",
+          vehicleName: vehicles.find((v) => v.id === s.vehicleId)?.name || t("Kendaraan Dihapus", "Deleted Vehicle"),
         }))
       );
-      
+
       setIsModalOpen(false);
       setNewService({
         vehicleId: "",
@@ -83,10 +86,11 @@ export default function ServiceHistoryPage() {
         cost: 0,
         location: "",
         description: "",
+        odometer: 0,
       });
     } catch (error) {
       console.error("Error adding service:", error);
-      alert("Gagal menambahkan servis. Silakan coba lagi.");
+      alert(t("Gagal menambahkan servis. Silakan coba lagi.", "Failed to add service record. Please try again."));
     } finally {
       setSaving(false);
     }
@@ -107,30 +111,30 @@ export default function ServiceHistoryPage() {
     <div className="space-y-6 animate-fade-in">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="font-display text-2xl text-ink sm:text-3xl">Riwayat Servis</h1>
-          <p className="mt-1 text-sm text-ink-muted">Daftar semua catatan servis kendaraan kamu.</p>
+          <h1 className="font-display text-2xl text-ink sm:text-3xl">{t("Riwayat Servis", "Service History")}</h1>
+          <p className="mt-1 text-sm text-ink-muted">{t("Daftar semua catatan servis kendaraan kamu.", "List of all your vehicle service records.")}</p>
         </div>
         <Button onClick={() => setIsModalOpen(true)} disabled={vehicles.length === 0}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
             <path d="M12 5v14M5 12h14" />
           </svg>
-          Tambah Servis
+          {t("Tambah Servis", "Add Service")}
         </Button>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-3">
         <div className="rounded-2xl border border-surface-border bg-white p-5 shadow-soft">
-          <p className="text-xs uppercase tracking-wide text-ink-subtle">Total Servis</p>
+          <p className="text-xs uppercase tracking-wide text-ink-subtle">{t("Total Servis", "Total Services")}</p>
           <p className="mt-2 font-display text-2xl text-ink">{services.length}x</p>
         </div>
         <div className="rounded-2xl border border-surface-border bg-white p-5 shadow-soft">
-          <p className="text-xs uppercase tracking-wide text-ink-subtle">Total Pengeluaran</p>
-          <p className="mt-2 font-display text-2xl text-ink">{formatRupiah(total)}</p>
+          <p className="text-xs uppercase tracking-wide text-ink-subtle">{t("Total Pengeluaran", "Total Expense")}</p>
+          <p className="mt-2 font-display text-2xl text-ink">{formatRupiah(total, locale)}</p>
         </div>
         <div className="rounded-2xl border border-surface-border bg-white p-5 shadow-soft">
-          <p className="text-xs uppercase tracking-wide text-ink-subtle">Servis Terakhir</p>
+          <p className="text-xs uppercase tracking-wide text-ink-subtle">{t("Servis Terakhir", "Last Service")}</p>
           <p className="mt-2 font-display text-2xl text-ink">
-            {lastService ? formatServiceDate(lastService.date) : "-"}
+            {lastService ? formatServiceDate(lastService.date, locale) : "-"}
           </p>
         </div>
       </div>
@@ -142,18 +146,18 @@ export default function ServiceHistoryPage() {
               <path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L4 17l3 3 5.3-5.3a4 4 0 0 0 5.4-5.4l-2.3 2.3-2.4-2.4 2.3-2.3-.6-.6Z" />
             </svg>
           </span>
-          <h3 className="mt-4 font-semibold text-ink">Belum ada catatan servis</h3>
+          <h3 className="mt-4 font-semibold text-ink">{t("Belum ada catatan servis", "No service records yet")}</h3>
           <p className="mt-2 text-sm text-ink-muted">
-            {vehicles.length === 0 
-              ? "Tambahkan kendaraan terlebih dahulu sebelum mencatat servis."
-              : "Mulai catat servis kendaraanmu untuk melacak pengeluaran perawatan."}
+            {vehicles.length === 0
+              ? t("Tambahkan kendaraan terlebih dahulu sebelum mencatat servis.", "Add a vehicle before logging service records.")
+              : t("Mulai catat servis kendaraanmu untuk melacak pengeluaran perawatan.", "Start logging services to track maintenance costs.")}
           </p>
           {vehicles.length > 0 && (
             <Button className="mt-6" onClick={() => setIsModalOpen(true)}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                 <path d="M12 5v14M5 12h14" />
               </svg>
-              Tambah Servis Pertama
+              {t("Tambah Servis Pertama", "Add First Service")}
             </Button>
           )}
         </div>
@@ -163,8 +167,8 @@ export default function ServiceHistoryPage() {
             <ServiceCard
               key={service.id}
               title={service.title}
-              date={service.date}
-              cost={formatRupiah(service.cost)}
+              date={formatServiceDate(service.date, locale)}
+              cost={formatRupiah(service.cost, locale)}
               vehicle={service.vehicleName}
               location={service.location}
             />
@@ -172,8 +176,7 @@ export default function ServiceHistoryPage() {
         </div>
       )}
 
-      {/* Add Service Modal */}
-      <Modal open={isModalOpen} title="Tambah Catatan Servis" onClose={() => setIsModalOpen(false)}>
+      <Modal open={isModalOpen} title={t("Tambah Catatan Servis", "Add Service Record")} onClose={() => setIsModalOpen(false)}>
         <form
           className="space-y-4"
           onSubmit={(e) => {
@@ -183,7 +186,7 @@ export default function ServiceHistoryPage() {
         >
           <div className="space-y-1.5">
             <label className="block text-sm font-medium text-ink" htmlFor="serviceVehicle">
-              Kendaraan
+              {t("Kendaraan", "Vehicle")}
             </label>
             <select
               id="serviceVehicle"
@@ -192,7 +195,7 @@ export default function ServiceHistoryPage() {
               onChange={(e) => setNewService({ ...newService, vehicleId: e.target.value })}
               required
             >
-              <option value="">Pilih kendaraan</option>
+              <option value="">{t("Pilih kendaraan", "Select vehicle")}</option>
               {vehicles.map((v) => (
                 <option key={v.id} value={v.id}>{v.name} ({v.plateNumber})</option>
               ))}
@@ -201,11 +204,11 @@ export default function ServiceHistoryPage() {
 
           <div className="space-y-1.5">
             <label className="block text-sm font-medium text-ink" htmlFor="serviceTitle">
-              Judul Servis
+              {t("Judul Servis", "Service Title")}
             </label>
             <Input
               id="serviceTitle"
-              placeholder="Contoh: Ganti Oli Mesin"
+              placeholder={t("Contoh: Ganti Oli Mesin", "Example: Engine Oil Change")}
               value={newService.title}
               onChange={(e) => setNewService({ ...newService, title: e.target.value })}
               required
@@ -215,7 +218,7 @@ export default function ServiceHistoryPage() {
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
               <label className="block text-sm font-medium text-ink" htmlFor="serviceDate">
-                Tanggal
+                {t("Tanggal", "Date")}
               </label>
               <Input
                 id="serviceDate"
@@ -227,7 +230,7 @@ export default function ServiceHistoryPage() {
             </div>
             <div className="space-y-1.5">
               <label className="block text-sm font-medium text-ink" htmlFor="serviceCost">
-                Biaya (Rp)
+                {t("Biaya (Rp)", "Cost (IDR)")}
               </label>
               <Input
                 id="serviceCost"
@@ -243,11 +246,11 @@ export default function ServiceHistoryPage() {
 
           <div className="space-y-1.5">
             <label className="block text-sm font-medium text-ink" htmlFor="serviceLocation">
-              Lokasi Bengkel
+              {t("Lokasi Bengkel", "Workshop Location")}
             </label>
             <Input
               id="serviceLocation"
-              placeholder="Contoh: AHASS Menteng"
+              placeholder={t("Contoh: AHASS Menteng", "Example: AHASS Menteng")}
               value={newService.location}
               onChange={(e) => setNewService({ ...newService, location: e.target.value })}
               required
@@ -255,14 +258,29 @@ export default function ServiceHistoryPage() {
           </div>
 
           <div className="space-y-1.5">
+            <label className="block text-sm font-medium text-ink" htmlFor="serviceOdometer">
+              Odometer (KM)
+            </label>
+            <Input
+              id="serviceOdometer"
+              type="number"
+              placeholder={t("Contoh: 15000", "Example: 15000")}
+              min={0}
+              value={newService.odometer || ""}
+              onChange={(e) => setNewService({ ...newService, odometer: parseInt(e.target.value) || 0 })}
+            />
+            <p className="text-xs text-ink-muted">{t("KM saat ini akan di-update dan menjadi dasar pengingat servis berikutnya", "Current KM will be updated and used for the next service reminder")}</p>
+          </div>
+
+          <div className="space-y-1.5">
             <label className="block text-sm font-medium text-ink" htmlFor="serviceDescription">
-              Catatan (Opsional)
+              {t("Catatan (Opsional)", "Notes (Optional)")}
             </label>
             <textarea
               id="serviceDescription"
               className="w-full rounded-xl border border-surface-border bg-white px-4 py-3 text-sm text-ink transition focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100"
               rows={3}
-              placeholder="Detail tambahan..."
+              placeholder={t("Detail tambahan...", "Additional details...")}
               value={newService.description}
               onChange={(e) => setNewService({ ...newService, description: e.target.value })}
             />
@@ -270,10 +288,10 @@ export default function ServiceHistoryPage() {
 
           <div className="flex gap-3 pt-2">
             <Button type="button" variant="secondary" className="flex-1" onClick={() => setIsModalOpen(false)} disabled={saving}>
-              Batal
+              {t("Batal", "Cancel")}
             </Button>
             <Button type="submit" className="flex-1" disabled={saving}>
-              {saving ? "Menyimpan..." : "Simpan"}
+              {saving ? t("Menyimpan...", "Saving...") : t("Simpan", "Save")}
             </Button>
           </div>
         </form>

@@ -7,11 +7,13 @@ import Button from "../../../../components/ui/Button";
 import Input from "../../../../components/ui/Input";
 import Modal from "../../../../components/ui/Modal";
 import { useAuth } from "../../../../hooks/useAuth";
+import { useT } from "../../../../hooks/useT";
 import { getVehicle, getServiceRecords, getFuelRecords, updateVehicle, deleteVehicle } from "../../../../lib/firestore";
 import { formatRupiah, formatServiceDate } from "../../../../utils/formatter";
 import type { Vehicle, ServiceRecord, FuelRecord, VehicleInput } from "../../../../types";
 
 export default function VehicleDetailPage() {
+  const { t, locale } = useT();
   const params = useParams();
   const router = useRouter();
   const { user } = useAuth();
@@ -32,6 +34,7 @@ export default function VehicleDetailPage() {
     year: new Date().getFullYear(),
     color: "",
     odometer: 0,
+    serviceInterval: 5000,
   });
 
   useEffect(() => {
@@ -69,6 +72,7 @@ export default function VehicleDetailPage() {
       year: vehicle.year,
       color: vehicle.color || "",
       odometer: vehicle.odometer || 0,
+      serviceInterval: vehicle.serviceInterval || 5000,
     });
     setIsEditModalOpen(true);
   }
@@ -82,7 +86,7 @@ export default function VehicleDetailPage() {
       setIsEditModalOpen(false);
     } catch (error) {
       console.error("Error updating vehicle:", error);
-      alert("Gagal memperbarui kendaraan.");
+      alert(t("Gagal memperbarui kendaraan.", "Failed to update vehicle."));
     } finally {
       setSaving(false);
     }
@@ -93,10 +97,10 @@ export default function VehicleDetailPage() {
     setSaving(true);
     try {
       await deleteVehicle(vehicle.id);
-      router.push("/dashboard/vehicles");
+      router.push(`/${locale}/dashboard/vehicles`);
     } catch (error) {
       console.error("Error deleting vehicle:", error);
-      alert("Gagal menghapus kendaraan.");
+      alert(t("Gagal menghapus kendaraan.", "Failed to delete vehicle."));
     } finally {
       setSaving(false);
     }
@@ -115,13 +119,13 @@ export default function VehicleDetailPage() {
       <div className="space-y-6 animate-fade-in">
         {/* Back Button */}
         <Link
-          href="/dashboard/vehicles"
+          href={`/${locale}/dashboard/vehicles`}
           className="inline-flex items-center gap-2 text-sm font-medium text-ink-muted transition hover:text-ink"
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
             <path d="m15 18-6-6 6-6" />
           </svg>
-          Kembali ke Daftar Kendaraan
+          {t("Kembali ke Daftar Kendaraan", "Back to Vehicle List")}
         </Link>
 
         {/* Not Found State */}
@@ -134,13 +138,13 @@ export default function VehicleDetailPage() {
                 <circle cx="17" cy="17" r="2" />
               </svg>
             </span>
-            <h2 className="mt-6 text-xl font-semibold text-ink">Kendaraan tidak ditemukan</h2>
+            <h2 className="mt-6 text-xl font-semibold text-ink">{t("Kendaraan tidak ditemukan", "Vehicle not found")}</h2>
             <p className="mt-2 text-sm text-ink-muted">
-              Kendaraan yang kamu cari tidak ada atau sudah dihapus.
+              {t("Kendaraan yang kamu cari tidak ada atau sudah dihapus.", "The vehicle you are looking for does not exist or has been deleted.")}
             </p>
-            <Link href="/dashboard/vehicles">
+            <Link href={`/${locale}/dashboard/vehicles`}>
               <Button className="mt-6" variant="secondary">
-                Kembali ke Daftar Kendaraan
+                {t("Kembali ke Daftar Kendaraan", "Back to Vehicle List")}
               </Button>
             </Link>
           </div>
@@ -157,13 +161,13 @@ export default function VehicleDetailPage() {
     <div className="space-y-6 animate-fade-in">
       {/* Back Button */}
       <Link
-        href="/dashboard/vehicles"
+        href={`/${locale}/dashboard/vehicles`}
         className="inline-flex items-center gap-2 text-sm font-medium text-ink-muted transition hover:text-ink"
       >
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
           <path d="m15 18-6-6 6-6" />
         </svg>
-        Kembali ke Daftar Kendaraan
+        {t("Kembali ke Daftar Kendaraan", "Back to Vehicle List")}
       </Link>
 
       {/* Vehicle Header */}
@@ -210,7 +214,7 @@ export default function VehicleDetailPage() {
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
               </svg>
-              Edit
+              {t("Edit", "Edit")}
             </Button>
             <button
               onClick={() => setIsDeleteModalOpen(true)}
@@ -219,34 +223,44 @@ export default function VehicleDetailPage() {
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="inline-block mr-1.5">
                 <path d="M3 6h18M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
               </svg>
-              Hapus
+              {t("Hapus", "Delete")}
             </button>
           </div>
         </div>
 
         {/* Stats */}
-        <div className="mt-6 grid gap-4 border-t border-surface-border pt-6 sm:grid-cols-4">
+        <div className="mt-6 grid gap-4 border-t border-surface-border pt-6 sm:grid-cols-5">
           <div>
             <p className="text-xs uppercase tracking-wide text-ink-subtle">Odometer</p>
-            <p className="mt-1 font-display text-xl text-ink">{vehicle.odometer.toLocaleString()} KM</p>
+            <p className="mt-1 font-display text-xl text-ink">{vehicle.odometer.toLocaleString(locale === "en" ? "en-US" : "id-ID")} KM</p>
           </div>
           <div>
-            <p className="text-xs uppercase tracking-wide text-ink-subtle">Total Servis</p>
-            <p className="mt-1 font-display text-xl text-ink">{formatRupiah(totalServiceCost)}</p>
+            <p className="text-xs uppercase tracking-wide text-ink-subtle">{t("Total Servis", "Total Services")}</p>
+            <p className="mt-1 font-display text-xl text-ink">{formatRupiah(totalServiceCost, locale)}</p>
           </div>
           <div>
-            <p className="text-xs uppercase tracking-wide text-ink-subtle">Total Bensin</p>
-            <p className="mt-1 font-display text-xl text-ink">{formatRupiah(totalFuelCost)}</p>
+            <p className="text-xs uppercase tracking-wide text-ink-subtle">{t("Total Bensin", "Total Fuel")}</p>
+            <p className="mt-1 font-display text-xl text-ink">{formatRupiah(totalFuelCost, locale)}</p>
           </div>
           <div>
-            <p className="text-xs uppercase tracking-wide text-ink-subtle">Konsumsi Bensin</p>
-            <p className="mt-1 font-display text-xl text-ink">{totalFuelLiter.toFixed(1)} L</p>
+            <p className="text-xs uppercase tracking-wide text-ink-subtle">{t("Konsumsi BBM", "Fuel Consumption")}</p>
+            <p className="mt-1 font-display text-xl text-ink">
+              {vehicle.fuelConsumption ? `${vehicle.fuelConsumption} km/L` : "-"}
+            </p>
+          </div>
+          <div>
+            <p className="text-xs uppercase tracking-wide text-ink-subtle">{t("Servis Berikutnya", "Next Service")}</p>
+            <p className="mt-1 font-display text-xl text-ink">
+              {vehicle.serviceInterval && vehicle.lastServiceOdometer 
+                ? `${(vehicle.lastServiceOdometer + vehicle.serviceInterval).toLocaleString(locale === "en" ? "en-US" : "id-ID")} KM`
+                : "-"}
+            </p>
           </div>
         </div>
 
         {vehicle.notes && (
           <div className="mt-6 rounded-xl bg-surface-muted p-4">
-            <p className="text-xs font-medium uppercase tracking-wide text-ink-subtle">Catatan</p>
+            <p className="text-xs font-medium uppercase tracking-wide text-ink-subtle">{t("Catatan", "Notes")}</p>
             <p className="mt-1 text-sm text-ink-muted">{vehicle.notes}</p>
           </div>
         )}
@@ -257,12 +271,12 @@ export default function VehicleDetailPage() {
         {/* Service History */}
         <div className="rounded-2xl border border-surface-border bg-white shadow-soft">
           <div className="flex items-center justify-between border-b border-surface-border px-5 py-4">
-            <h3 className="font-display text-lg text-ink">Riwayat Servis</h3>
-            <span className="text-xs text-ink-subtle">{services.length} catatan</span>
+            <h3 className="font-display text-lg text-ink">{t("Riwayat Servis", "Service History")}</h3>
+            <span className="text-xs text-ink-subtle">{services.length} {t("catatan", "records")}</span>
           </div>
           {services.length === 0 ? (
             <div className="p-8 text-center">
-              <p className="text-sm text-ink-muted">Belum ada catatan servis.</p>
+              <p className="text-sm text-ink-muted">{t("Belum ada catatan servis.", "No service records yet.")}</p>
             </div>
           ) : (
             <ul className="divide-y divide-surface-border">
@@ -277,11 +291,11 @@ export default function VehicleDetailPage() {
                     <div>
                       <p className="font-medium text-ink">{service.title}</p>
                       <p className="text-sm text-ink-muted">
-                        {formatServiceDate(service.date)} • {service.location}
+                        {formatServiceDate(service.date, locale)} • {service.location}
                       </p>
                     </div>
                   </div>
-                  <span className="font-semibold text-ink">{formatRupiah(service.cost)}</span>
+                  <span className="font-semibold text-ink">{formatRupiah(service.cost, locale)}</span>
                 </li>
               ))}
             </ul>
@@ -291,12 +305,12 @@ export default function VehicleDetailPage() {
         {/* Fuel History */}
         <div className="rounded-2xl border border-surface-border bg-white shadow-soft">
           <div className="flex items-center justify-between border-b border-surface-border px-5 py-4">
-            <h3 className="font-display text-lg text-ink">Riwayat Bensin</h3>
-            <span className="text-xs text-ink-subtle">{fuels.length} catatan</span>
+            <h3 className="font-display text-lg text-ink">{t("Riwayat Bensin", "Fuel History")}</h3>
+            <span className="text-xs text-ink-subtle">{fuels.length} {t("catatan", "records")}</span>
           </div>
           {fuels.length === 0 ? (
             <div className="p-8 text-center">
-              <p className="text-sm text-ink-muted">Belum ada catatan bensin.</p>
+              <p className="text-sm text-ink-muted">{t("Belum ada catatan bensin.", "No fuel records yet.")}</p>
             </div>
           ) : (
             <ul className="divide-y divide-surface-border">
@@ -311,11 +325,11 @@ export default function VehicleDetailPage() {
                     <div>
                       <p className="font-medium text-ink">{fuel.station}</p>
                       <p className="text-sm text-ink-muted">
-                        {formatServiceDate(fuel.date)} • {fuel.liter} L • {fuel.odometer.toLocaleString()} KM
+                        {formatServiceDate(fuel.date, locale)} • {fuel.liter} L • {fuel.odometer.toLocaleString(locale === "en" ? "en-US" : "id-ID")} KM
                       </p>
                     </div>
                   </div>
-                  <span className="font-semibold text-ink">{formatRupiah(fuel.cost)}</span>
+                  <span className="font-semibold text-ink">{formatRupiah(fuel.cost, locale)}</span>
                 </li>
               ))}
             </ul>
@@ -324,7 +338,7 @@ export default function VehicleDetailPage() {
       </div>
 
       {/* Edit Vehicle Modal */}
-      <Modal open={isEditModalOpen} title="Edit Kendaraan" onClose={() => setIsEditModalOpen(false)}>
+      <Modal open={isEditModalOpen} title={t("Edit Kendaraan", "Edit Vehicle")} onClose={() => setIsEditModalOpen(false)}>
         <form
           className="space-y-4"
           onSubmit={(e) => {
@@ -334,11 +348,11 @@ export default function VehicleDetailPage() {
         >
           <div className="space-y-1.5">
             <label className="block text-sm font-medium text-ink" htmlFor="editVehicleName">
-              Nama Kendaraan
+              {t("Nama Kendaraan", "Vehicle Name")}
             </label>
             <Input
               id="editVehicleName"
-              placeholder="Contoh: Vario Hitam"
+              placeholder={t("Contoh: Vario Hitam", "Example: Black Vario")}
               value={editForm.name}
               onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
               required
@@ -347,11 +361,11 @@ export default function VehicleDetailPage() {
 
           <div className="space-y-1.5">
             <label className="block text-sm font-medium text-ink" htmlFor="editVehiclePlate">
-              Plat Nomor
+              {t("Plat Nomor", "Plate Number")}
             </label>
             <Input
               id="editVehiclePlate"
-              placeholder="Contoh: B 1234 ABC"
+              placeholder={t("Contoh: B 1234 ABC", "Example: B 1234 ABC")}
               value={editForm.plateNumber}
               onChange={(e) => setEditForm({ ...editForm, plateNumber: e.target.value })}
               required
@@ -359,7 +373,7 @@ export default function VehicleDetailPage() {
           </div>
 
           <div className="space-y-1.5">
-            <label className="block text-sm font-medium text-ink">Tipe Kendaraan</label>
+            <label className="block text-sm font-medium text-ink">{t("Tipe Kendaraan", "Vehicle Type")}</label>
             <div className="flex gap-3">
               <button
                 type="button"
@@ -375,7 +389,7 @@ export default function VehicleDetailPage() {
                   <path d="M12 15V5l4 2v4" />
                   <circle cx="12" cy="5" r="1" />
                 </svg>
-                Motor
+                {t("Motor", "Motorcycle")}
               </button>
               <button
                 type="button"
@@ -391,18 +405,18 @@ export default function VehicleDetailPage() {
                   <circle cx="7" cy="17" r="2" />
                   <circle cx="17" cy="17" r="2" />
                 </svg>
-                Mobil
+                {t("Mobil", "Car")}
               </button>
             </div>
           </div>
 
           <div className="space-y-1.5">
             <label className="block text-sm font-medium text-ink" htmlFor="editVehicleBrand">
-              Merek & Tipe
+              {t("Merek & Tipe", "Brand & Model")}
             </label>
             <Input
               id="editVehicleBrand"
-              placeholder="Contoh: Honda Vario 160"
+              placeholder={t("Contoh: Honda Vario 160", "Example: Honda Vario 160")}
               value={editForm.brand}
               onChange={(e) => setEditForm({ ...editForm, brand: e.target.value })}
               required
@@ -412,7 +426,7 @@ export default function VehicleDetailPage() {
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <label className="block text-sm font-medium text-ink" htmlFor="editVehicleYear">
-                Tahun
+                {t("Tahun", "Year")}
               </label>
               <Input
                 id="editVehicleYear"
@@ -440,29 +454,48 @@ export default function VehicleDetailPage() {
 
           <div className="space-y-1.5">
             <label className="block text-sm font-medium text-ink" htmlFor="editVehicleColor">
-              Warna
+              {t("Warna", "Color")}
             </label>
             <Input
               id="editVehicleColor"
-              placeholder="Contoh: Hitam"
+              placeholder={t("Contoh: Hitam", "Example: Black")}
               value={editForm.color}
               onChange={(e) => setEditForm({ ...editForm, color: e.target.value })}
             />
           </div>
 
+          <div className="space-y-1.5">
+            <label className="block text-sm font-medium text-ink" htmlFor="editServiceInterval">
+              {t("Pengingat Servis (per KM)", "Service Reminder (per KM)")}
+            </label>
+            <select
+              id="editServiceInterval"
+              className="w-full rounded-xl border border-surface-border bg-white px-4 py-2.5 text-sm text-ink outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+              value={editForm.serviceInterval || 0}
+              onChange={(e) => setEditForm({ ...editForm, serviceInterval: parseInt(e.target.value) })}
+            >
+              <option value={0}>{t("Tidak ada pengingat", "No reminder")}</option>
+              <option value={1000}>{t("Setiap 1.000 KM", "Every 1,000 KM")}</option>
+              <option value={2000}>{t("Setiap 2.000 KM", "Every 2,000 KM")}</option>
+              <option value={3000}>{t("Setiap 3.000 KM", "Every 3,000 KM")}</option>
+              <option value={5000}>{t("Setiap 5.000 KM", "Every 5,000 KM")}</option>
+              <option value={10000}>{t("Setiap 10.000 KM", "Every 10,000 KM")}</option>
+            </select>
+          </div>
+
           <div className="flex gap-3 pt-2">
             <Button type="button" variant="secondary" className="flex-1" onClick={() => setIsEditModalOpen(false)} disabled={saving}>
-              Batal
+              {t("Batal", "Cancel")}
             </Button>
             <Button type="submit" className="flex-1" disabled={saving}>
-              {saving ? "Menyimpan..." : "Simpan Perubahan"}
+              {saving ? t("Menyimpan...", "Saving...") : t("Simpan Perubahan", "Save Changes")}
             </Button>
           </div>
         </form>
       </Modal>
 
       {/* Delete Confirmation Modal */}
-      <Modal open={isDeleteModalOpen} title="Hapus Kendaraan" onClose={() => setIsDeleteModalOpen(false)}>
+      <Modal open={isDeleteModalOpen} title={t("Hapus Kendaraan", "Delete Vehicle")} onClose={() => setIsDeleteModalOpen(false)}>
         <div className="text-center">
           <span className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-red-50 text-red-500">
             <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -470,10 +503,10 @@ export default function VehicleDetailPage() {
             </svg>
           </span>
           <h3 className="mt-4 text-lg font-semibold text-ink">
-            Hapus {vehicle?.name}?
+            {t("Hapus", "Delete")} {vehicle?.name}?
           </h3>
           <p className="mt-2 text-sm text-ink-muted">
-            Kendaraan ini akan dihapus secara permanen beserta semua catatan servis dan bensinnya. Aksi ini tidak dapat dibatalkan.
+            {t("Kendaraan ini akan dihapus secara permanen beserta semua catatan servis dan bensinnya. Aksi ini tidak dapat dibatalkan.", "This vehicle and all related service/fuel records will be permanently deleted. This action cannot be undone.")}
           </p>
           <div className="mt-6 flex gap-3">
             <Button
@@ -482,14 +515,14 @@ export default function VehicleDetailPage() {
               onClick={() => setIsDeleteModalOpen(false)}
               disabled={saving}
             >
-              Batal
+              {t("Batal", "Cancel")}
             </Button>
             <button
               onClick={handleDeleteVehicle}
               disabled={saving}
               className="flex-1 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700 disabled:opacity-50"
             >
-              {saving ? "Menghapus..." : "Ya, Hapus"}
+              {saving ? t("Menghapus...", "Deleting...") : t("Ya, Hapus", "Yes, Delete")}
             </button>
           </div>
         </div>
