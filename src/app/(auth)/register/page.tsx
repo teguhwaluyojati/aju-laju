@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useMemo, useState, useEffect } from "react";
-import { createUserWithEmailAndPassword, updateProfile, signInWithPopup } from "firebase/auth";
+import { createUserWithEmailAndPassword, updateProfile, signInWithPopup, sendEmailVerification, signOut } from "firebase/auth";
 import Logo from "../../../components/ui/Logo";
 import Modal from "../../../components/ui/Modal";
 import PolicyModalContent from "../../../components/ui/PolicyModalContent";
@@ -23,13 +23,25 @@ export default function RegisterPage() {
         "auth/invalid-email": t("Format email tidak valid.", "Invalid email format."),
         "auth/email-already-in-use": t("Email ini sudah terdaftar.", "This email is already registered."),
         "auth/weak-password": t("Password terlalu lemah (minimal 6 karakter).", "Weak password (minimum 6 characters)."),
+        "auth/operation-not-allowed": t(
+          "Metode daftar Email/Password belum diaktifkan di Firebase Authentication.",
+          "Email/Password sign-up is not enabled in Firebase Authentication."
+        ),
+        "auth/configuration-not-found": t(
+          "Konfigurasi autentikasi Firebase belum ditemukan. Cek pengaturan Authentication.",
+          "Firebase authentication configuration was not found. Please check Authentication settings."
+        ),
+        "auth/network-request-failed": t(
+          "Koneksi internet bermasalah. Periksa jaringan lalu coba lagi.",
+          "Network issue detected. Please check your connection and try again."
+        ),
         "auth/too-many-requests": t("Terlalu banyak percobaan. Coba lagi nanti.", "Too many attempts. Try again later."),
         "auth/popup-closed-by-user": t("Popup login ditutup. Silakan coba lagi.", "Login popup closed. Please try again."),
         "auth/cancelled-popup-request": t("Login dibatalkan.", "Login cancelled."),
         "auth/account-exists-with-different-credential": t("Akun sudah terdaftar dengan metode login lain.", "Account exists with a different sign-in method."),
       };
 
-      return messageMap[code] ?? t("Registrasi gagal. Silakan coba lagi.", "Registration failed. Please try again.");
+      return messageMap[code] ?? `${t("Registrasi gagal. Silakan coba lagi.", "Registration failed. Please try again.")} (${code || "unknown"})`;
     }
 
   const { isAuthenticated, loading: authLoading } = useAuth();
@@ -37,6 +49,7 @@ export default function RegisterPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
+  const [noticeMessage, setNoticeMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [hasAcceptedPolicies, setHasAcceptedPolicies] = useState(false);
   const [activePolicyModal, setActivePolicyModal] = useState<"terms" | "privacy" | null>(null);
@@ -94,6 +107,7 @@ export default function RegisterPage() {
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setErrorMessage("");
+    setNoticeMessage("");
 
     if (!auth || !isFirebaseConfigured) {
       setErrorMessage(firebaseConfigError || t("Firebase belum dikonfigurasi.", "Firebase is not configured."));
@@ -122,6 +136,20 @@ export default function RegisterPage() {
       if (credential.user && name.trim()) {
         await updateProfile(credential.user, { displayName: name.trim() });
       }
+
+      if (credential.user && !credential.user.emailVerified) {
+        await sendEmailVerification(credential.user);
+        await signOut(auth);
+        setNoticeMessage(
+          t(
+            "Registrasi berhasil. Kami sudah mengirim email verifikasi. Silakan cek inbox/spam lalu verifikasi sebelum login.",
+            "Registration successful. We sent a verification email. Please check inbox/spam and verify before signing in."
+          )
+        );
+        setPassword("");
+        return;
+      }
+
       router.push(localizePath("/dashboard"));
     } catch (error) {
       const firebaseError = error as { code?: string };
@@ -134,6 +162,7 @@ export default function RegisterPage() {
   async function handleGoogleLogin() {
     if (!auth) return;
     setErrorMessage("");
+    setNoticeMessage("");
 
     if (!hasAcceptedPolicies) {
       setErrorMessage(
@@ -162,6 +191,7 @@ export default function RegisterPage() {
   async function handleFacebookLogin() {
     if (!auth) return;
     setErrorMessage("");
+    setNoticeMessage("");
 
     if (!hasAcceptedPolicies) {
       setErrorMessage(
@@ -486,6 +516,18 @@ export default function RegisterPage() {
                     .
                   </span>
                 </label>
+
+                {/* Error Message */}
+                {noticeMessage && (
+                  <div className="flex items-start gap-3 rounded-xl bg-emerald-50 p-4">
+                    <span className="mt-0.5 grid h-5 w-5 flex-shrink-0 place-items-center rounded-full bg-emerald-100 text-emerald-700">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M20 6 9 17l-5-5" />
+                      </svg>
+                    </span>
+                    <p className="text-sm text-emerald-800">{noticeMessage}</p>
+                  </div>
+                )}
 
                 {/* Error Message */}
                 {errorMessage && (
