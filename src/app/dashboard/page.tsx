@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { formatRupiah } from "../../utils/formatter";
+import { formatRupiah, formatServiceDate } from "../../utils/formatter";
 import { useAuth } from "../../hooks/useAuth";
-import { getUserStats } from "../../lib/firestore";
+import { getUserStats, getServiceRecords, getFuelRecords, getVehicles } from "../../lib/firestore";
+import type { ServiceRecord, FuelRecord, Vehicle } from "../../types";
 
 const quickLinks = [
   {
@@ -39,6 +40,15 @@ interface Stats {
   totalCost: number;
 }
 
+type Activity = {
+  id: string;
+  type: "service" | "fuel";
+  title: string;
+  vehicleName: string;
+  date: string;
+  cost: number;
+};
+
 export default function DashboardPage() {
   const { user } = useAuth();
   const displayName = user?.displayName || user?.email?.split("@")[0] || "Pengguna";
@@ -46,21 +56,84 @@ export default function DashboardPage() {
   const email = user?.email || "";
   
   const [stats, setStats] = useState<Stats | null>(null);
+  const [activities, setActivities] = useState<Activity[]>([]);
+  const [monthlyData, setMonthlyData] = useState<{ labels: string[]; totals: number[] }>({ labels: [], totals: [] });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    async function fetchStats() {
+    async function fetchData() {
       if (!user) return;
       try {
-        const data = await getUserStats(user.uid);
-        setStats(data);
+        const [statsData, services, fuels, vehicles] = await Promise.all([
+          getUserStats(user.uid),
+          getServiceRecords(user.uid),
+          getFuelRecords(user.uid),
+          getVehicles(user.uid),
+        ]);
+        
+        setStats(statsData);
+        
+        // Combine and sort activities
+        const vehicleMap = new Map(vehicles.map((v) => [v.id, v.name]));
+        
+        const allActivities: Activity[] = [
+          ...services.map((s) => ({
+            id: s.id,
+            type: "service" as const,
+            title: s.title,
+            vehicleName: vehicleMap.get(s.vehicleId) || "Kendaraan Dihapus",
+            date: s.date,
+            cost: s.cost,
+          })),
+          ...fuels.map((f) => ({
+            id: f.id,
+            type: "fuel" as const,
+            title: `Isi ${f.liter}L ${f.fuelType || "Bensin"}`,
+            vehicleName: vehicleMap.get(f.vehicleId) || "Kendaraan Dihapus",
+            date: f.date,
+            cost: f.cost,
+          })),
+        ];
+        
+        // Sort by date descending
+        allActivities.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        setActivities(allActivities.slice(0, 5));
+        
+        // Calculate monthly totals for chart (last 6 months)
+        const now = new Date();
+        const monthNames = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
+        const labels: string[] = [];
+        const totals: number[] = [];
+        
+        for (let i = 5; i >= 0; i--) {
+          const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+          labels.push(monthNames[d.getMonth()]);
+          
+          const monthServiceTotal = services
+            .filter((s) => {
+              const entryDate = new Date(s.date);
+              return entryDate.getMonth() === d.getMonth() && entryDate.getFullYear() === d.getFullYear();
+            })
+            .reduce((sum, s) => sum + s.cost, 0);
+          
+          const monthFuelTotal = fuels
+            .filter((f) => {
+              const entryDate = new Date(f.date);
+              return entryDate.getMonth() === d.getMonth() && entryDate.getFullYear() === d.getFullYear();
+            })
+            .reduce((sum, f) => sum + f.cost, 0);
+          
+          totals.push(monthServiceTotal + monthFuelTotal);
+        }
+        
+        setMonthlyData({ labels, totals });
       } catch (error) {
-        console.error("Error fetching stats:", error);
+        console.error("Error fetching data:", error);
       } finally {
         setLoading(false);
       }
     }
-    fetchStats();
+    fetchData();
   }, [user]);
 
   return (
@@ -179,39 +252,122 @@ export default function DashboardPage() {
         ))}
       </div>
 
-      {/* Recent Activity - Empty State */}
+      {/* Expense Chart */}
+      {!loading && monthlyData.totals.some((t) => t > 0) && (
+        <div className="rounded-2xl border border-surface-border bg-white p-5 shadow-soft sm:p-6">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h3 className="font-display text-lg text-ink">Grafik Pengeluaran</h3>
+              <p className="text-sm text-ink-muted">Total pengeluaran per bulan</p>
+            </div>
+            <div className="text-right">
+              <p className="text-xs text-ink-subtle">Rata-rata</p>
+              <p className="font-semibold text-ink">
+                {formatRupiah(Math.round(monthlyData.totals.reduce((a, b) => a + b, 0) / monthlyData.totals.length))}
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-6 flex h-40 items-end gap-2">
+            {monthlyData.totals.map((value, index) => {
+              const maxValue = Math.max(...monthlyData.totals, 1);
+              const height = Math.max((value / maxValue) * 100, 6);
+              return (
+                <div key={index} className="group relative flex flex-1 flex-col items-center">
+                  <div
+                    className="w-full rounded-t-lg bg-gradient-to-t from-brand-500/25 to-brand-500 transition group-hover:from-brand-600/40 group-hover:to-brand-600"
+                    style={{ height: `${height}%` }}
+                  />
+                  <div className="pointer-events-none absolute bottom-full mb-2 rounded-md bg-ink px-2 py-1 text-xs text-white opacity-0 shadow-pop transition group-hover:opacity-100 whitespace-nowrap">
+                    {formatRupiah(value)}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="mt-2 flex gap-2 text-center text-xs text-ink-subtle">
+            {monthlyData.labels.map((label, index) => (
+              <span key={index} className="flex-1">
+                {label}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Recent Activity */}
       <div className="rounded-2xl border border-surface-border bg-white shadow-soft">
         <div className="flex items-center justify-between border-b border-surface-border px-5 py-4">
           <h3 className="font-display text-lg text-ink">Aktivitas Terbaru</h3>
+          {activities.length > 0 && (
+            <span className="text-xs text-ink-subtle">{activities.length} terbaru</span>
+          )}
         </div>
-        <div className="flex flex-col items-center justify-center py-12 text-center">
-          <span className="grid h-16 w-16 place-items-center rounded-full bg-slate-100 text-ink-subtle">
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-              <line x1="16" y1="2" x2="16" y2="6" />
-              <line x1="8" y1="2" x2="8" y2="6" />
-              <line x1="3" y1="10" x2="21" y2="10" />
-            </svg>
-          </span>
-          <h4 className="mt-4 font-semibold text-ink">Belum ada aktivitas</h4>
-          <p className="mt-1 max-w-xs text-sm text-ink-muted">
-            Mulai catat servis atau pengisian bensin kendaraanmu untuk melihat aktivitas di sini.
-          </p>
-          <div className="mt-6 flex gap-3">
-            <Link
-              href="/dashboard/service"
-              className="rounded-xl bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white shadow-soft transition hover:bg-brand-700"
-            >
-              + Tambah Servis
-            </Link>
-            <Link
-              href="/dashboard/fuel"
-              className="rounded-xl border border-surface-border bg-white px-4 py-2.5 text-sm font-semibold text-ink shadow-soft transition hover:bg-slate-50"
-            >
-              + Tambah Bensin
-            </Link>
+        
+        {activities.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-12 text-center">
+            <span className="grid h-16 w-16 place-items-center rounded-full bg-slate-100 text-ink-subtle">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                <line x1="16" y1="2" x2="16" y2="6" />
+                <line x1="8" y1="2" x2="8" y2="6" />
+                <line x1="3" y1="10" x2="21" y2="10" />
+              </svg>
+            </span>
+            <h4 className="mt-4 font-semibold text-ink">Belum ada aktivitas</h4>
+            <p className="mt-1 max-w-xs text-sm text-ink-muted">
+              Mulai catat servis atau pengisian bensin kendaraanmu untuk melihat aktivitas di sini.
+            </p>
+            <div className="mt-6 flex gap-3">
+              <Link
+                href="/dashboard/service"
+                className="rounded-xl bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white shadow-soft transition hover:bg-brand-700"
+              >
+                + Tambah Servis
+              </Link>
+              <Link
+                href="/dashboard/fuel"
+                className="rounded-xl border border-surface-border bg-white px-4 py-2.5 text-sm font-semibold text-ink shadow-soft transition hover:bg-slate-50"
+              >
+                + Tambah Bensin
+              </Link>
+            </div>
           </div>
-        </div>
+        ) : (
+          <ul className="divide-y divide-surface-border">
+            {activities.map((activity) => (
+              <li key={activity.id} className="flex items-center justify-between px-5 py-4">
+                <div className="flex items-center gap-3">
+                  <span
+                    className={`grid h-10 w-10 place-items-center rounded-xl ${
+                      activity.type === "service"
+                        ? "bg-amber-50 text-amber-700"
+                        : "bg-brand-50 text-brand-700"
+                    }`}
+                  >
+                    {activity.type === "service" ? (
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L4 17l3 3 5.3-5.3a4 4 0 0 0 5.4-5.4l-2.3 2.3-2.4-2.4 2.3-2.3-.6-.6Z" />
+                      </svg>
+                    ) : (
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M4 20V6a2 2 0 0 1 2-2h7a2 2 0 0 1 2 2v14M4 20h11M15 10h3l2 2v6a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2" />
+                      </svg>
+                    )}
+                  </span>
+                  <div>
+                    <p className="font-medium text-ink">{activity.title}</p>
+                    <p className="text-sm text-ink-muted">
+                      {activity.vehicleName} • {formatServiceDate(activity.date)}
+                    </p>
+                  </div>
+                </div>
+                <span className="font-semibold text-ink">{formatRupiah(activity.cost)}</span>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
     </div>
   );
