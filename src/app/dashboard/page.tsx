@@ -5,8 +5,8 @@ import { useEffect, useState } from "react";
 import { formatRupiah, formatServiceDate } from "../../utils/formatter";
 import { useAuth } from "../../hooks/useAuth";
 import { useT } from "../../hooks/useT";
-import { getUserStats, getServiceRecords, getFuelRecords, getVehicles, getServiceReminders, type ServiceReminder } from "../../lib/firestore";
-import type { ServiceRecord, FuelRecord, Vehicle } from "../../types";
+import { getServiceRecords, getFuelRecords, getVehicles, type ServiceReminder } from "../../lib/firestore";
+import type { Vehicle } from "../../types";
 
 function localizePath(locale: "id" | "en", path: string): string {
   if (path === "/") return `/${locale}`;
@@ -30,6 +30,30 @@ type Activity = {
   date: string;
   cost: number;
 };
+
+function buildServiceReminders(vehicles: Vehicle[]): ServiceReminder[] {
+  const reminders: ServiceReminder[] = [];
+
+  for (const vehicle of vehicles) {
+    if (!vehicle.serviceInterval || vehicle.serviceInterval <= 0) continue;
+
+    const lastService = vehicle.lastServiceOdometer || 0;
+    const currentOdometer = vehicle.odometer || 0;
+    const nextServiceAt = lastService + vehicle.serviceInterval;
+    const kmRemaining = nextServiceAt - currentOdometer;
+
+    if (kmRemaining <= 500) {
+      reminders.push({
+        vehicle,
+        nextServiceAt,
+        kmRemaining,
+        isUrgent: kmRemaining <= 500,
+      });
+    }
+  }
+
+  return reminders.sort((a, b) => a.kmRemaining - b.kmRemaining);
+}
 
 export default function DashboardPage() {
   const { t, locale } = useT();
@@ -74,15 +98,25 @@ export default function DashboardPage() {
     async function fetchData() {
       if (!user) return;
       try {
-        const [statsData, services, fuels, vehicles, reminders] = await Promise.all([
-          getUserStats(user.uid),
+        const [services, fuels, vehicles] = await Promise.all([
           getServiceRecords(user.uid),
           getFuelRecords(user.uid),
           getVehicles(user.uid),
-          getServiceReminders(user.uid),
         ]);
+        const reminders = buildServiceReminders(vehicles);
+
+        const totalServiceCost = services.reduce((sum, s) => sum + s.cost, 0);
+        const totalFuelCost = fuels.reduce((sum, f) => sum + f.cost, 0);
+
+        setStats({
+          vehicleCount: vehicles.length,
+          serviceCount: services.length,
+          fuelCount: fuels.length,
+          totalServiceCost,
+          totalFuelCost,
+          totalCost: totalServiceCost + totalFuelCost,
+        });
         
-        setStats(statsData);
         setServiceReminders(reminders);
         
         // Show popup if there are reminders that haven't been dismissed

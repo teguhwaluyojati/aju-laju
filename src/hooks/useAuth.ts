@@ -7,6 +7,30 @@ import { createUserProfile } from "../lib/firestore";
 
 const SESSION_MAX_MS = 6 * 60 * 60 * 1000; // 6 hours
 const SESSION_STARTED_AT_KEY = "ajulaju.session.startedAt";
+const profileCreationPromises = new Map<string, Promise<void>>();
+
+function ensureUserProfileCreated(user: User): Promise<void> {
+  const existingPromise = profileCreationPromises.get(user.uid);
+  if (existingPromise) {
+    return existingPromise;
+  }
+
+  const promise = createUserProfile(
+    user.uid,
+    user.email || "",
+    user.displayName || user.email?.split("@")[0] || "User",
+    user.photoURL || undefined
+  )
+    .catch((error) => {
+      console.error("Error creating user profile:", error);
+    })
+    .finally(() => {
+      profileCreationPromises.delete(user.uid);
+    });
+
+  profileCreationPromises.set(user.uid, promise);
+  return promise;
+}
 
 function getSessionStartedAt(): number | null {
   const value = window.localStorage.getItem(SESSION_STARTED_AT_KEY);
@@ -69,19 +93,7 @@ export function useAuth() {
 
       setUser(user);
 
-      // Create user profile in Firestore on first login
-      if (user) {
-        try {
-          await createUserProfile(
-            user.uid,
-            user.email || "",
-            user.displayName || user.email?.split("@")[0] || "User",
-            user.photoURL || undefined
-          );
-        } catch (error) {
-          console.error("Error creating user profile:", error);
-        }
-      }
+      await ensureUserProfileCreated(user);
 
       setLoading(false);
     });
