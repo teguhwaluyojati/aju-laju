@@ -24,6 +24,10 @@ function localizePath(locale: "id" | "en", path: string): string {
   return `/${locale}${path}`;
 }
 
+function localizeAboutPath(locale: "id" | "en"): string {
+  return localizePath(locale, locale === "en" ? "/about" : "/tentang");
+}
+
 export default function DashboardLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -326,7 +330,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
               © {new Date().getFullYear()} AjuLaju. {t("Seluruh hak cipta dilindungi.", "All rights reserved.")}
             </p>
             <div className="flex flex-wrap items-center justify-center gap-4 sm:justify-end">
-              <Link href={localizePath(locale, "/tentang")} className="transition hover:text-ink">
+              <Link href={localizeAboutPath(locale)} className="transition hover:text-ink">
                 {t("Tentang", "About")}
               </Link>
               <a href="mailto:teguhwaluyojati14@gmail.com" className="transition hover:text-ink">

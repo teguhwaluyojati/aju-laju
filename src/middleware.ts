@@ -3,6 +3,10 @@ import { defaultLocale, isLocale, type Locale } from "./i18n/config";
 
 const LOCALE_COOKIE = "locale";
 
+function getLocalizedAboutPath(locale: Locale): "/about" | "/tentang" {
+  return locale === "en" ? "/about" : "/tentang";
+}
+
 function getPreferredLocale(request: NextRequest): Locale {
   const cookieValue = request.cookies.get(LOCALE_COOKIE)?.value;
   if (cookieValue && isLocale(cookieValue)) {
@@ -29,6 +33,16 @@ export function middleware(request: NextRequest) {
 
   if (isLocale(maybeLocale)) {
     const strippedPath = `/${segments.slice(1).join("/")}`;
+
+    if (strippedPath === "/about" || strippedPath === "/tentang") {
+      const canonicalPath = getLocalizedAboutPath(maybeLocale);
+      if (strippedPath !== canonicalPath) {
+        const redirectUrl = request.nextUrl.clone();
+        redirectUrl.pathname = `/${maybeLocale}${canonicalPath}`;
+        return NextResponse.redirect(redirectUrl);
+      }
+    }
+
     const rewriteUrl = request.nextUrl.clone();
     rewriteUrl.pathname = strippedPath === "/" ? "/" : strippedPath;
 
@@ -51,6 +65,13 @@ export function middleware(request: NextRequest) {
   }
 
   const locale = getPreferredLocale(request);
+
+  if (pathname === "/about" || pathname === "/tentang") {
+    const redirectUrl = request.nextUrl.clone();
+    redirectUrl.pathname = `/${locale}${getLocalizedAboutPath(locale)}`;
+    return NextResponse.redirect(redirectUrl);
+  }
+
   const redirectUrl = request.nextUrl.clone();
   redirectUrl.pathname = pathname === "/" ? `/${locale}` : `/${locale}${pathname}`;
 
