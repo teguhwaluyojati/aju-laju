@@ -55,7 +55,53 @@ NEXT_PUBLIC_FIREBASE_PROJECT_ID=your_project_id
 NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your_project.appspot.com
 NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
 NEXT_PUBLIC_FIREBASE_APP_ID=your_app_id
+
+# For daily summary email cron
+CRON_SECRET=your_random_long_secret
+SMTP_HOST=smtp.your-provider.com
+SMTP_PORT=587
+SMTP_SECURE=false
+SMTP_USER=your_smtp_username
+SMTP_PASSWORD=your_smtp_password
+DAILY_SUMMARY_FROM_EMAIL=AjuLaju <noreply@your-domain.com>
+NEXT_PUBLIC_APP_URL=https://your-vercel-domain
+
+# Firebase Admin (choose one approach)
+# A) Full JSON service account (single line JSON string)
+FIREBASE_SERVICE_ACCOUNT_KEY={"type":"service_account",...}
+
+# B) Split credentials
+FIREBASE_PROJECT_ID=your_project_id
+FIREBASE_CLIENT_EMAIL=firebase-adminsdk-xxx@your_project.iam.gserviceaccount.com
+FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
 ```
+
+## Daily Email Reminder (Cron)
+
+This project includes a production-ready daily email summary endpoint:
+
+- API route: `/api/cron/daily-summary`
+- Vercel cron config: `vercel.json` (runs daily at `23:00 UTC`)
+- Auth: requires `Authorization: Bearer <CRON_SECRET>`
+- Delivery: SMTP via your own mail provider
+
+Email summary includes:
+
+- Fuel expense (today + this month)
+- Service expense (today + this month)
+- Per-vehicle service remaining KM
+- Per-vehicle fuel consumption and latest fuel spend
+
+### Manual Test (before cron)
+
+Use your deployed URL and call:
+
+```bash
+curl -X GET "https://your-domain.vercel.app/api/cron/daily-summary" \
+  -H "Authorization: Bearer your_cron_secret"
+```
+
+If successful, response contains send counters (`sentEmails`, `failedEmails`, `skippedUsers`).
 
 ## Firebase Setup
 
