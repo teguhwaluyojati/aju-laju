@@ -347,17 +347,20 @@ export default function DashboardPage() {
             <p className="text-sm text-ink-muted">{email}</p>
           </div>
         </div>
-        <div className="text-right">
-          <p className="text-xs text-ink-subtle">{t("Member sejak", "Member since")}</p>
-          <p className="text-sm font-medium text-ink">
-            {user?.metadata?.creationTime 
-                ? new Date(user.metadata.creationTime).toLocaleDateString(locale === "en" ? "en-US" : "id-ID", { 
-                  day: "numeric", 
-                  month: "long", 
-                  year: "numeric" 
-                })
-              : "-"}
-          </p>
+
+        <div className="flex items-center gap-3">
+          <div className="text-right">
+            <p className="text-xs text-ink-subtle">{t("Member sejak", "Member since")}</p>
+            <p className="text-sm font-medium text-ink">
+              {user?.metadata?.creationTime 
+                  ? new Date(user.metadata.creationTime).toLocaleDateString(locale === "en" ? "en-US" : "id-ID", { 
+                    day: "numeric", 
+                    month: "long", 
+                    year: "numeric" 
+                  })
+                : "-"}
+            </p>
+          </div>
         </div>
       </div>
 

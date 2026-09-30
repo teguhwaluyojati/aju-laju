@@ -8,6 +8,7 @@ import Logo from "../../components/ui/Logo";
 import Modal from "../../components/ui/Modal";
 import Button from "../../components/ui/Button";
 import { auth } from "../../lib/firebase";
+import { getServiceReminders, type ServiceReminder } from "../../lib/firestore";
 import { useAuth } from "../../hooks/useAuth";
 import { useT } from "../../hooks/useT";
 
@@ -34,8 +35,11 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   const { t, locale } = useT();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
+  const [notificationOpen, setNotificationOpen] = useState(false);
+  const [serviceReminders, setServiceReminders] = useState<ServiceReminder[]>([]);
   const [logoutModalOpen, setLogoutModalOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const notificationRef = useRef<HTMLDivElement>(null);
   const { user, loading, isAuthenticated } = useAuth();
 
   const navItems: NavItem[] = useMemo(
@@ -85,9 +89,23 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setProfileDropdownOpen(false);
       }
+      if (notificationRef.current && !notificationRef.current.contains(event.target as Node)) {
+        setNotificationOpen(false);
+      }
     }
+
+    function handleEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setNotificationOpen(false);
+      }
+    }
+
     document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleEscape);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleEscape);
+    };
   }, []);
 
   useEffect(() => {
@@ -95,6 +113,17 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
       router.replace(localizePath(locale, "/"));
     }
   }, [loading, isAuthenticated, router, locale]);
+
+  useEffect(() => {
+    if (!user) {
+      setServiceReminders([]);
+      return;
+    }
+
+    getServiceReminders(user.uid)
+      .then(setServiceReminders)
+      .catch((error) => console.error("Error fetching service reminders:", error));
+  }, [user, pathname]);
 
   useEffect(() => {
     if (loading || !isAuthenticated || !user) return;
@@ -254,14 +283,64 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
           </div>
 
           <div className="ml-auto flex items-center gap-2">
+            <div className="relative" ref={notificationRef}>
+              <button
+                type="button"
+                onClick={() => setNotificationOpen((isOpen) => !isOpen)}
+                aria-label={t("Notifikasi servis", "Service notifications")}
+                aria-expanded={notificationOpen}
+                className="relative grid h-10 w-10 place-items-center rounded-xl text-ink-muted transition hover:bg-slate-100 hover:text-ink"
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9" />
+                  <path d="M10 21h4" />
+                </svg>
+                {serviceReminders.length > 0 && (
+                  <span className="absolute right-1 top-1 grid h-4 min-w-4 place-items-center rounded-full bg-red-500 px-1 text-[10px] font-semibold leading-none text-white">
+                    {serviceReminders.length}
+                  </span>
+                )}
+              </button>
+
+              {notificationOpen && (
+                <div className="absolute right-0 top-full z-30 mt-2 w-80 max-w-[calc(100vw-2rem)] rounded-xl border border-surface-border bg-white p-3 shadow-card">
+                  <p className="px-2 pb-2 text-sm font-semibold text-ink">
+                    {t("Pemberitahuan", "Notifications")}
+                  </p>
+                  {serviceReminders.length > 0 ? (
+                    <div className="max-h-72 space-y-2 overflow-y-auto">
+                      {serviceReminders.map((reminder) => (
+                        <div key={reminder.vehicle.id} className="rounded-lg bg-amber-50 px-3 py-2.5">
+                          <p className="text-sm font-medium text-ink">{reminder.vehicle.name}</p>
+                          <p className={`mt-0.5 text-xs ${reminder.kmRemaining <= 0 ? "font-medium text-red-600" : "text-amber-800"}`}>
+                            {reminder.kmRemaining <= 0
+                              ? `${t("Terlambat", "Overdue by")} ${Math.abs(reminder.kmRemaining).toLocaleString(locale === "en" ? "en-US" : "id-ID")} KM`
+                              : `${t("Sisa", "Remaining")} ${reminder.kmRemaining.toLocaleString(locale === "en" ? "en-US" : "id-ID")} KM`}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="px-2 py-3 text-sm text-ink-muted">
+                      {t("Tidak ada servis yang perlu segera dilakukan.", "No service due soon.")}
+                    </p>
+                  )}
+                  <Link
+                    href={localizePath(locale, "/dashboard/service")}
+                    onClick={() => setNotificationOpen(false)}
+                    className="mt-2 block rounded-lg px-2 py-2 text-sm font-medium text-brand-700 transition hover:bg-brand-50"
+                  >
+                    {t("Lihat riwayat servis", "View service history")}
+                  </Link>
+                </div>
+              )}
+            </div>
+
             <div className="relative" ref={dropdownRef}>
               <button
                 onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
                 className="flex items-center gap-2 rounded-xl px-2 py-1.5 transition hover:bg-slate-100"
               >
-                <span className="hidden text-sm text-ink-muted sm:inline">
-                  {t("Halo", "Hi")}, {user?.displayName || user?.email?.split("@")[0] || t("Pengguna", "User")}
-                </span>
                 {user?.photoURL ? (
                   <img
                     src={user.photoURL}
