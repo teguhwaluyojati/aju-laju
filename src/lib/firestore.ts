@@ -39,7 +39,8 @@ export async function createUserProfile(
   uid: string,
   email: string,
   displayName: string,
-  photoURL?: string
+  photoURL?: string,
+  locale: "id" | "en" = "id"
 ): Promise<void> {
   if (!db) throw new Error("Firestore not initialized");
 
@@ -53,7 +54,13 @@ export async function createUserProfile(
       email,
       displayName,
       photoURL: photoURL || null,
+      locale,
       createdAt: Timestamp.now(),
+      updatedAt: Timestamp.now(),
+    });
+  } else if (!userSnap.data().locale) {
+    await updateDoc(userRef, {
+      locale,
       updatedAt: Timestamp.now(),
     });
   }

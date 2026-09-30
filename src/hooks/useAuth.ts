@@ -4,12 +4,13 @@ import { useEffect, useState } from "react";
 import { onAuthStateChanged, signOut, User } from "firebase/auth";
 import { auth } from "../lib/firebase";
 import { createUserProfile } from "../lib/firestore";
+import { useLocale } from "./useLocale";
 
 const SESSION_MAX_MS = 6 * 60 * 60 * 1000; // 6 hours
 const SESSION_STARTED_AT_KEY = "ajulaju.session.startedAt";
 const profileCreationPromises = new Map<string, Promise<void>>();
 
-function ensureUserProfileCreated(user: User): Promise<void> {
+function ensureUserProfileCreated(user: User, locale: "id" | "en"): Promise<void> {
   const existingPromise = profileCreationPromises.get(user.uid);
   if (existingPromise) {
     return existingPromise;
@@ -19,7 +20,8 @@ function ensureUserProfileCreated(user: User): Promise<void> {
     user.uid,
     user.email || "",
     user.displayName || user.email?.split("@")[0] || "User",
-    user.photoURL || undefined
+    user.photoURL || undefined,
+    locale
   )
     .catch((error) => {
       console.error("Error creating user profile:", error);
@@ -63,6 +65,7 @@ function isSessionExpired(): boolean {
 }
 
 export function useAuth() {
+  const locale = useLocale();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -93,13 +96,13 @@ export function useAuth() {
 
       setUser(user);
 
-      await ensureUserProfileCreated(user);
+      await ensureUserProfileCreated(user, locale);
 
       setLoading(false);
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [locale]);
 
   useEffect(() => {
     if (!auth || !user) return;

@@ -2,6 +2,8 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import { defaultLocale, isLocale, type Locale } from "../../i18n/config";
+import { updateUserProfile } from "../../lib/firestore";
+import { auth } from "../../lib/firebase";
 
 function switchLocaleInPath(pathname: string, nextLocale: Locale): string {
   const segments = pathname.split("/").filter(Boolean);
@@ -49,9 +51,18 @@ export default function LanguageSwitcher() {
 
   const currentLocale: Locale = resolveCurrentLocale();
 
-  function changeLocale(nextLocale: Locale) {
+  async function changeLocale(nextLocale: Locale) {
     if (nextLocale === currentLocale) return;
     const nextPath = switchLocaleInPath(pathname, nextLocale);
+
+    if (auth?.currentUser) {
+      try {
+        await updateUserProfile(auth.currentUser.uid, { locale: nextLocale });
+      } catch (error) {
+        console.error("Error saving language preference:", error);
+      }
+    }
+
     if (typeof window !== "undefined") {
       window.dispatchEvent(new Event("app:navigation-start"));
     }

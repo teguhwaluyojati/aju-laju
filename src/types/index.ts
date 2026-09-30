@@ -4,6 +4,7 @@ export interface UserProfile {
   email: string;
   displayName: string;
   photoURL?: string;
+  locale?: "id" | "en";
   createdAt: Date;
   updatedAt: Date;
 }
