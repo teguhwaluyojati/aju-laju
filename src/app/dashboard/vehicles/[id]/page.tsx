@@ -9,6 +9,7 @@ import Modal from "../../../../components/ui/Modal";
 import { useAuth } from "../../../../hooks/useAuth";
 import { useT } from "../../../../hooks/useT";
 import { getVehicle, getServiceRecords, getFuelRecords, updateVehicle, deleteVehicle } from "../../../../lib/firestore";
+import { getFuelConsumptionStats } from "../../../../utils/fuelConsumption";
 import { formatRupiah, formatServiceDate } from "../../../../utils/formatter";
 import type { Vehicle, ServiceRecord, FuelRecord, VehicleInput } from "../../../../types";
 
@@ -156,6 +157,7 @@ export default function VehicleDetailPage() {
   const totalServiceCost = services.reduce((sum, s) => sum + s.cost, 0);
   const totalFuelCost = fuels.reduce((sum, f) => sum + f.cost, 0);
   const totalFuelLiter = fuels.reduce((sum, f) => sum + f.liter, 0);
+  const fuelStats = getFuelConsumptionStats(fuels, 500);
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -229,7 +231,7 @@ export default function VehicleDetailPage() {
         </div>
 
         {/* Stats */}
-        <div className="mt-6 grid gap-4 border-t border-surface-border pt-6 sm:grid-cols-5">
+        <div className="mt-6 grid gap-4 border-t border-surface-border pt-6 sm:grid-cols-6">
           <div>
             <p className="text-xs uppercase tracking-wide text-ink-subtle">Odometer</p>
             <p className="mt-1 font-display text-xl text-ink">{vehicle.odometer.toLocaleString(locale === "en" ? "en-US" : "id-ID")} KM</p>
@@ -243,9 +245,15 @@ export default function VehicleDetailPage() {
             <p className="mt-1 font-display text-xl text-ink">{formatRupiah(totalFuelCost, locale)}</p>
           </div>
           <div>
-            <p className="text-xs uppercase tracking-wide text-ink-subtle">{t("Konsumsi BBM", "Fuel Consumption")}</p>
+            <p className="text-xs uppercase tracking-wide text-ink-subtle">{t("Rata-rata 500 KM", "500 KM Avg")}</p>
             <p className="mt-1 font-display text-xl text-ink">
-              {vehicle.fuelConsumption ? `${vehicle.fuelConsumption} km/L` : "-"}
+              {fuelStats.averageByDistanceWindow ? `${fuelStats.averageByDistanceWindow} km/L` : "-"}
+            </p>
+          </div>
+          <div>
+            <p className="text-xs uppercase tracking-wide text-ink-subtle">{t("Konsumsi Terakhir", "Last Fill")}</p>
+            <p className="mt-1 font-display text-xl text-ink">
+              {fuelStats.lastRefillConsumption ? `${fuelStats.lastRefillConsumption} km/L` : "-"}
             </p>
           </div>
           <div>

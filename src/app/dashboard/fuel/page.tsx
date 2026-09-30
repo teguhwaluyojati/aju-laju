@@ -15,6 +15,7 @@ import {
   updateFuelRecord,
   deleteFuelRecord,
 } from "../../../lib/firestore";
+import { getFuelConsumptionStats } from "../../../utils/fuelConsumption";
 import type { FuelRecord, FuelRecordInput, Vehicle } from "../../../types";
 
 type FuelWithVehicle = FuelRecord & { vehicleName: string };
@@ -29,6 +30,8 @@ export default function FuelHistoryPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingFuelId, setEditingFuelId] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [searchTerm, setSearchTerm] = useState("");
   const [newFuel, setNewFuel] = useState({
     vehicleId: "",
     date: new Date().toISOString().split("T")[0],
@@ -38,6 +41,14 @@ export default function FuelHistoryPage() {
     odometer: 0,
     fuelType: "Pertalite",
   });
+  const [fuelNotification, setFuelNotification] = useState<{
+    vehicleName: string;
+    lastRefillConsumption: number | null;
+    average500Km: number | null;
+    distanceKm: number | null;
+    liter: number;
+    cost: number;
+  } | null>(null);
 
   const defaultFuelState = {
     vehicleId: "",
@@ -101,6 +112,20 @@ export default function FuelHistoryPage() {
     fetchData();
   }, [user, t]);
 
+  useEffect(() => {
+    if (!fuelNotification) return;
+
+    const timer = window.setTimeout(() => {
+      setFuelNotification(null);
+    }, 6000);
+
+    return () => window.clearTimeout(timer);
+  }, [fuelNotification]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [entries.length]);
+
   async function handleSaveFuel() {
     if (!user || !newFuel.vehicleId) return;
     setSaving(true);
@@ -118,14 +143,36 @@ export default function FuelHistoryPage() {
         fuelType: newFuel.fuelType,
       };
 
+      let createdFuelId: string | null = null;
+
       if (editingFuelId) {
         await updateFuelRecord(editingFuelId, payload);
       } else {
-        await createFuelRecord(user.uid, payload);
+        createdFuelId = await createFuelRecord(user.uid, payload);
       }
 
-      await refreshFuelEntries(user.uid, vehicles);
+      const refreshedFuelList = await getFuelRecords(user.uid);
+      const refreshedVehicleList = await getVehicles(user.uid);
+      const selectedVehicle = refreshedVehicleList.find((vehicle) => vehicle.id === newFuel.vehicleId);
+      const vehicleFuelEntries = refreshedFuelList.filter((fuel) => fuel.vehicleId === newFuel.vehicleId);
+      const summary = getFuelConsumptionStats(vehicleFuelEntries, 500);
 
+      if (!editingFuelId && createdFuelId) {
+        const createdEntry = vehicleFuelEntries.find((entry) => entry.id === createdFuelId);
+        if (createdEntry && summary.lastRefillConsumption !== null) {
+          setFuelNotification({
+            vehicleName: selectedVehicle?.name || t("Kendaraan", "Vehicle"),
+            lastRefillConsumption: summary.lastRefillConsumption,
+            average500Km: summary.averageByDistanceWindow,
+            distanceKm: summary.lastRefillDistanceKm,
+            liter: createdEntry.liter,
+            cost: createdEntry.cost,
+          });
+        }
+      }
+
+      setEntries(mapFuelWithVehicle(refreshedFuelList, refreshedVehicleList));
+      setVehicles(refreshedVehicleList);
       setIsModalOpen(false);
       setEditingFuelId(null);
       setNewFuel(defaultFuelState);
@@ -192,6 +239,39 @@ export default function FuelHistoryPage() {
     })
     .reduce((sum, e) => sum + e.cost, 0);
 
+  const averageFuelConsumption = (() => {
+    const consumptionByVehicle = vehicles
+      .map((vehicle) => {
+        const vehicleEntries = entries.filter((entry) => entry.vehicleId === vehicle.id);
+        return getFuelConsumptionStats(vehicleEntries, 500).averageByDistanceWindow;
+      })
+      .filter((value): value is number => value !== null && Number.isFinite(value));
+
+    if (consumptionByVehicle.length === 0) return null;
+    return Number((consumptionByVehicle.reduce((sum, value) => sum + value, 0) / consumptionByVehicle.length).toFixed(1));
+  })();
+
+  const pageSize = 10;
+  const normalizedSearch = searchTerm.trim().toLowerCase();
+  const filteredEntries = normalizedSearch.length === 0
+    ? entries
+    : entries.filter((entry) => {
+        const searchableText = [
+          entry.station,
+          entry.vehicleName,
+          entry.fuelType || "",
+          entry.date,
+        ]
+          .join(" ")
+          .toLowerCase();
+
+        return searchableText.includes(normalizedSearch);
+      });
+
+  const totalPages = Math.max(1, Math.ceil(filteredEntries.length / pageSize));
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+  const paginatedEntries = filteredEntries.slice((safeCurrentPage - 1) * pageSize, safeCurrentPage * pageSize);
+
   if (loading) {
     return (
       <div className="flex min-h-[50vh] items-center justify-center">
@@ -202,6 +282,56 @@ export default function FuelHistoryPage() {
 
   return (
     <div className="space-y-6 animate-fade-in">
+      {fuelNotification && (
+        <div className="fixed bottom-5 right-5 z-50 w-[320px] rounded-2xl border border-brand-200 bg-slate-900 p-4 text-white shadow-2xl">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-xs font-medium uppercase tracking-[0.12em] text-brand-200">
+                {t("Konsumsi Baru", "New Consumption")}
+              </p>
+              <h3 className="mt-1 text-lg font-semibold text-white">{fuelNotification.vehicleName}</h3>
+            </div>
+            <button
+              type="button"
+              onClick={() => setFuelNotification(null)}
+              className="text-sm text-slate-300 transition hover:text-white"
+              aria-label="Close notification"
+            >
+              ✕
+            </button>
+          </div>
+
+          <div className="mt-4 space-y-2 text-sm">
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-slate-300">{t("Konsumsi terakhir", "Last refill")}</span>
+              <span className="font-semibold text-brand-100">
+                {fuelNotification.lastRefillConsumption !== null ? `${fuelNotification.lastRefillConsumption} km/L` : "-"}
+              </span>
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-slate-300">{t("Jarak tempuh", "Distance")}</span>
+              <span className="font-semibold text-white">
+                {fuelNotification.distanceKm !== null ? `${fuelNotification.distanceKm.toLocaleString(locale === "en" ? "en-US" : "id-ID")} km` : "-"}
+              </span>
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-slate-300">{t("Liter", "Liter")}</span>
+              <span className="font-semibold text-white">{fuelNotification.liter} L</span>
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-slate-300">{t("Rata-rata 500 KM", "500 KM Avg")}</span>
+              <span className="font-semibold text-white">
+                {fuelNotification.average500Km !== null ? `${fuelNotification.average500Km} km/L` : "-"}
+              </span>
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-slate-300">{t("Biaya", "Cost")}</span>
+              <span className="font-semibold text-white">{formatRupiah(fuelNotification.cost, locale)}</span>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="font-display text-2xl text-ink sm:text-3xl">{t("Riwayat Bensin", "Fuel History")}</h1>
@@ -215,7 +345,7 @@ export default function FuelHistoryPage() {
         </Button>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-4">
         <div className="rounded-2xl border border-surface-border bg-white p-5 shadow-soft">
           <p className="text-xs uppercase tracking-wide text-ink-subtle">{t("Bulan Ini", "This Month")}</p>
           <p className="mt-2 font-display text-2xl text-ink">{formatRupiah(thisMonthTotal, locale)}</p>
@@ -227,6 +357,12 @@ export default function FuelHistoryPage() {
         <div className="rounded-2xl border border-surface-border bg-white p-5 shadow-soft">
           <p className="text-xs uppercase tracking-wide text-ink-subtle">{t("Total Pengisian", "Total Fills")}</p>
           <p className="mt-2 font-display text-2xl text-ink">{entries.length}x</p>
+        </div>
+        <div className="rounded-2xl border border-surface-border bg-white p-5 shadow-soft">
+          <p className="text-xs uppercase tracking-wide text-ink-subtle">{t("Rata-rata 500 KM", "500 KM Avg")}</p>
+          <p className="mt-2 font-display text-2xl text-ink">
+            {averageFuelConsumption !== null ? `${averageFuelConsumption} km/L` : t("Belum cukup data", "Not enough data")}
+          </p>
         </div>
       </div>
 
@@ -256,12 +392,40 @@ export default function FuelHistoryPage() {
         </div>
       ) : (
         <div className="rounded-2xl border border-surface-border bg-white shadow-soft">
-          <div className="flex items-center justify-between border-b border-surface-border px-5 py-4">
+          <div className="flex flex-col gap-3 border-b border-surface-border px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
             <h3 className="font-display text-lg text-ink">{t("Pengisian Terbaru", "Latest Fills")}</h3>
-            <span className="text-xs text-ink-subtle">{entries.length} {t("entri", "entries")}</span>
+            <div className="flex items-center gap-2 sm:justify-end">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-ink-muted">
+                <circle cx="11" cy="11" r="7" />
+                <path d="m20 20-3.5-3.5" />
+              </svg>
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                  setCurrentPage(1);
+                }}
+                placeholder={t("Cari kendaraan, stasiun, tanggal...", "Search vehicle, station, date...")}
+                className="w-full rounded-xl border border-surface-border bg-white px-3 py-2 text-sm text-ink outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100 sm:w-72"
+              />
+            </div>
           </div>
-          <ul className="divide-y divide-surface-border">
-            {entries.slice(0, 10).map((entry) => (
+
+          <div className="px-5 py-3 text-xs text-ink-subtle">
+            {normalizedSearch.length > 0
+              ? `${filteredEntries.length} ${t("hasil sesuai pencarian", "matching results")}`
+              : `${entries.length} ${t("entri", "entries")}`}
+          </div>
+
+          {filteredEntries.length === 0 ? (
+            <div className="px-5 py-10 text-center text-sm text-ink-muted">
+              {t("Tidak ada hasil yang cocok dengan pencarian kamu.", "No results match your search.")}
+            </div>
+          ) : (
+            <>
+              <ul className="divide-y divide-surface-border">
+                {paginatedEntries.map((entry) => (
               <li key={entry.id} className="flex items-start justify-between gap-3 px-5 py-4">
                 <div className="min-w-0 flex-1">
                   <p className="font-medium text-ink">{entry.station}</p>
@@ -312,6 +476,34 @@ export default function FuelHistoryPage() {
               </li>
             ))}
           </ul>
+
+              {filteredEntries.length > 10 && (
+                <div className="flex items-center justify-between border-t border-surface-border px-5 py-4">
+                  <button
+                    type="button"
+                    onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                    disabled={safeCurrentPage === 1}
+                    className="rounded-lg border border-surface-border bg-white px-3 py-2 text-sm font-medium text-ink disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    {t("Sebelumnya", "Previous")}
+                  </button>
+
+                  <p className="text-sm text-ink-muted">
+                    {t("Halaman", "Page")} {safeCurrentPage} / {totalPages}
+                  </p>
+
+                  <button
+                    type="button"
+                    onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+                    disabled={safeCurrentPage === totalPages}
+                    className="rounded-lg border border-surface-border bg-white px-3 py-2 text-sm font-medium text-ink disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    {t("Berikutnya", "Next")}
+                  </button>
+                </div>
+              )}
+            </>
+          )}
         </div>
       )}
 

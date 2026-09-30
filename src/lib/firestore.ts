@@ -14,6 +14,7 @@ import {
   DocumentData,
 } from "firebase/firestore";
 import { db } from "./firebase";
+import { getFuelConsumptionStats } from "../utils/fuelConsumption";
 import type {
   UserProfile,
   Vehicle,
@@ -262,27 +263,19 @@ export async function createFuelRecord(
     updatedAt: Timestamp.now(),
   });
 
-  // Update vehicle odometer and fuel consumption if new odometer is higher
   if (data.vehicleId && data.odometer > 0) {
     const vehicle = await getVehicle(data.vehicleId);
+    const vehicleFuelRecords = await getFuelRecords(userId, data.vehicleId);
+    const consumptionStats = getFuelConsumptionStats(vehicleFuelRecords, 500);
+
     if (vehicle && data.odometer > (vehicle.odometer || 0)) {
       const updateData: { odometer: number; fuelConsumption?: number; updatedAt: ReturnType<typeof Timestamp.now> } = {
         odometer: data.odometer,
         updatedAt: Timestamp.now(),
       };
 
-      // Calculate fuel consumption (km/L) if we have previous odometer data
-      if (vehicle.odometer && vehicle.odometer > 0 && data.liter > 0) {
-        const distanceTraveled = data.odometer - vehicle.odometer;
-        if (distanceTraveled > 0) {
-          const newConsumption = distanceTraveled / data.liter;
-          // Average with existing consumption for smoother calculation
-          if (vehicle.fuelConsumption && vehicle.fuelConsumption > 0) {
-            updateData.fuelConsumption = Math.round(((vehicle.fuelConsumption + newConsumption) / 2) * 10) / 10;
-          } else {
-            updateData.fuelConsumption = Math.round(newConsumption * 10) / 10;
-          }
-        }
+      if (consumptionStats.averageByDistanceWindow !== null) {
+        updateData.fuelConsumption = consumptionStats.averageByDistanceWindow;
       }
 
       await updateVehicle(data.vehicleId, updateData);
