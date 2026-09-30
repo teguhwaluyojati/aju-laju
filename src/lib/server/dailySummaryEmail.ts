@@ -32,8 +32,11 @@ type VehicleDoc = {
 
 type ServiceDoc = {
   userId: string;
+  vehicleId?: string;
   date?: string;
   cost?: number;
+  odometer?: number;
+  intervalKm?: number;
 };
 
 type FuelDoc = {
@@ -184,13 +187,24 @@ function deriveFuelConsumption(vehicle: VehicleDoc, fuelRows: FuelDoc[]): number
   return Math.round((distance / liters) * 10) / 10;
 }
 
-function buildVehicleSummary(vehicle: VehicleDoc, fuelRows: FuelDoc[]): VehicleSummary {
-  const serviceInterval = vehicle.serviceInterval || 0;
+function buildVehicleSummary(vehicle: VehicleDoc, fuelRows: FuelDoc[], serviceRows: ServiceDoc[] = []): VehicleSummary {
+  const latestService = [...serviceRows]
+    .filter((row) => row.vehicleId === vehicle.id)
+    .sort((a, b) => new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime())[0];
+
+  const serviceInterval =
+    typeof latestService?.intervalKm === "number" && latestService.intervalKm > 0
+      ? latestService.intervalKm
+      : vehicle.serviceInterval || 0;
+
   const odometer = vehicle.odometer || 0;
-  const lastService = vehicle.lastServiceOdometer || 0;
+  const lastService =
+    typeof latestService?.odometer === "number" && latestService.odometer > 0
+      ? latestService.odometer
+      : vehicle.lastServiceOdometer || 0;
 
   let kmRemaining: number | null = null;
-  if (serviceInterval > 0) {
+  if (serviceInterval > 0 && lastService > 0) {
     kmRemaining = lastService + serviceInterval - odometer;
   }
 
@@ -480,7 +494,8 @@ async function buildSummaryForUser(user: UserProfileDoc, now: Date): Promise<Use
   const vehicleSummaries = vehicles
     .map((vehicle) => {
       const vehicleFuels = fuels.filter((f) => f.vehicleId === vehicle.id);
-      return buildVehicleSummary(vehicle, vehicleFuels);
+      const vehicleServices = services.filter((s) => s.vehicleId === vehicle.id);
+      return buildVehicleSummary(vehicle, vehicleFuels, vehicleServices);
     })
     .sort((a, b) => {
       const rank = { overdue: 0, soon: 1, ok: 2 };

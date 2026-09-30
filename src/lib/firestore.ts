@@ -372,30 +372,54 @@ export interface ServiceReminder {
   isUrgent: boolean; // true if within 500 KM
 }
 
+export function buildVehicleServiceReminder(
+  vehicle: Vehicle,
+  serviceRows: ServiceRecord[]
+): ServiceReminder | null {
+  const latestService = [...serviceRows]
+    .filter((row) => row.vehicleId === vehicle.id)
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+
+  if (!latestService) return null;
+
+  const lastServiceOdometer =
+    typeof latestService.odometer === "number" && latestService.odometer > 0
+      ? latestService.odometer
+      : vehicle.lastServiceOdometer || 0;
+
+  const serviceInterval =
+    typeof latestService.intervalKm === "number" && latestService.intervalKm > 0
+      ? latestService.intervalKm
+      : vehicle.serviceInterval || 0;
+
+  if (!serviceInterval || serviceInterval <= 0 || !lastServiceOdometer || lastServiceOdometer <= 0) {
+    return null;
+  }
+
+  const currentOdometer = vehicle.odometer || 0;
+  const nextServiceAt = lastServiceOdometer + serviceInterval;
+  const kmRemaining = nextServiceAt - currentOdometer;
+
+  return {
+    vehicle,
+    nextServiceAt,
+    kmRemaining,
+    isUrgent: kmRemaining <= 500,
+  };
+}
+
 export async function getServiceReminders(userId: string): Promise<ServiceReminder[]> {
-  const vehicles = await getVehicles(userId);
+  const [vehicles, serviceRows] = await Promise.all([getVehicles(userId), getServiceRecords(userId)]);
   const reminders: ServiceReminder[] = [];
 
   for (const vehicle of vehicles) {
-    // Skip if no service interval set
-    if (!vehicle.serviceInterval || vehicle.serviceInterval <= 0) continue;
+    const reminder = buildVehicleServiceReminder(vehicle, serviceRows);
+    if (!reminder) continue;
 
-    const lastService = vehicle.lastServiceOdometer || 0;
-    const currentOdometer = vehicle.odometer || 0;
-    const nextServiceAt = lastService + vehicle.serviceInterval;
-    const kmRemaining = nextServiceAt - currentOdometer;
-
-    // Only include if within 500 KM or past due
-    if (kmRemaining <= 500) {
-      reminders.push({
-        vehicle,
-        nextServiceAt,
-        kmRemaining,
-        isUrgent: kmRemaining <= 500,
-      });
+    if (reminder.kmRemaining <= 500) {
+      reminders.push(reminder);
     }
   }
 
-  // Sort by most urgent first
   return reminders.sort((a, b) => a.kmRemaining - b.kmRemaining);
 }

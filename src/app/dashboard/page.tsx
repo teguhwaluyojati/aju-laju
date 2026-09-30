@@ -5,7 +5,13 @@ import { useEffect, useState } from "react";
 import { formatRupiah, formatServiceDate } from "../../utils/formatter";
 import { useAuth } from "../../hooks/useAuth";
 import { useT } from "../../hooks/useT";
-import { getServiceRecords, getFuelRecords, getVehicles, type ServiceReminder } from "../../lib/firestore";
+import {
+  getServiceRecords,
+  getFuelRecords,
+  getVehicles,
+  buildVehicleServiceReminder,
+  type ServiceReminder,
+} from "../../lib/firestore";
 import type { Vehicle } from "../../types";
 
 function localizePath(locale: "id" | "en", path: string): string {
@@ -31,24 +37,15 @@ type Activity = {
   cost: number;
 };
 
-function buildServiceReminders(vehicles: Vehicle[]): ServiceReminder[] {
+function buildServiceReminders(vehicles: Vehicle[], serviceRows: ReturnType<typeof getServiceRecords> extends Promise<infer T> ? T : never): ServiceReminder[] {
   const reminders: ServiceReminder[] = [];
 
   for (const vehicle of vehicles) {
-    if (!vehicle.serviceInterval || vehicle.serviceInterval <= 0) continue;
+    const reminder = buildVehicleServiceReminder(vehicle, serviceRows);
+    if (!reminder) continue;
 
-    const lastService = vehicle.lastServiceOdometer || 0;
-    const currentOdometer = vehicle.odometer || 0;
-    const nextServiceAt = lastService + vehicle.serviceInterval;
-    const kmRemaining = nextServiceAt - currentOdometer;
-
-    if (kmRemaining <= 500) {
-      reminders.push({
-        vehicle,
-        nextServiceAt,
-        kmRemaining,
-        isUrgent: kmRemaining <= 500,
-      });
+    if (reminder.kmRemaining <= 500) {
+      reminders.push(reminder);
     }
   }
 
@@ -98,12 +95,13 @@ export default function DashboardPage() {
     async function fetchData() {
       if (!user) return;
       try {
-        const [services, fuels, vehicles] = await Promise.all([
+        const [services, fuels, vehicles, serviceRows] = await Promise.all([
           getServiceRecords(user.uid),
           getFuelRecords(user.uid),
           getVehicles(user.uid),
+          getServiceRecords(user.uid),
         ]);
-        const reminders = buildServiceReminders(vehicles);
+        const reminders = buildServiceReminders(vehicles, serviceRows);
 
         const totalServiceCost = services.reduce((sum, s) => sum + s.cost, 0);
         const totalFuelCost = fuels.reduce((sum, f) => sum + f.cost, 0);
