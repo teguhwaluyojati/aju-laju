@@ -19,6 +19,15 @@ import type { ServiceRecord, ServiceRecordInput, Vehicle } from "../../../types"
 
 type ServiceWithVehicle = ServiceRecord & { vehicleName: string };
 
+const SERVICE_PRESETS = [
+  { id: "oil-change", label: "Oil Change", intervalKm: 5000 },
+  { id: "brake-check", label: "Brake Check", intervalKm: 10000 },
+  { id: "tire-rotation", label: "Tire Rotation", intervalKm: 5000 },
+  { id: "filter-service", label: "Filter Service", intervalKm: 10000 },
+  { id: "tune-up", label: "Tune Up", intervalKm: 10000 },
+  { id: "custom", label: "Custom", intervalKm: 0 },
+] as const;
+
 export default function ServiceHistoryPage() {
   const { t, locale } = useT();
   const { user } = useAuth();
@@ -31,7 +40,9 @@ export default function ServiceHistoryPage() {
   const [editingServiceId, setEditingServiceId] = useState<string | null>(null);
   const [newService, setNewService] = useState({
     vehicleId: "",
-    title: "",
+    presetId: "oil-change",
+    title: "Oil Change",
+    intervalKm: 5000,
     date: new Date().toISOString().split("T")[0],
     cost: 0,
     location: "",
@@ -41,7 +52,9 @@ export default function ServiceHistoryPage() {
 
   const defaultServiceState = {
     vehicleId: "",
-    title: "",
+    presetId: "oil-change",
+    title: "Oil Change",
+    intervalKm: 5000,
     date: new Date().toISOString().split("T")[0],
     cost: 0,
     location: "",
@@ -63,15 +76,27 @@ export default function ServiceHistoryPage() {
 
   function openAddModal() {
     setEditingServiceId(null);
-    setNewService(defaultServiceState);
+    setNewService({
+      ...defaultServiceState,
+      presetId: "oil-change",
+      title: "Oil Change",
+      intervalKm: 5000,
+    });
     setIsModalOpen(true);
   }
 
   function openEditModal(service: ServiceWithVehicle) {
+    const presetMatch = SERVICE_PRESETS.find((preset) => preset.label === service.title);
+    const nextPresetId = presetMatch ? presetMatch.id : "custom";
+    const nextPresetTitle = presetMatch ? presetMatch.label : service.title || "Custom";
+    const nextIntervalKm = service.intervalKm && service.intervalKm > 0 ? service.intervalKm : (presetMatch?.intervalKm ?? 5000);
+
     setEditingServiceId(service.id);
     setNewService({
       vehicleId: service.vehicleId,
-      title: service.title,
+      presetId: nextPresetId,
+      title: nextPresetTitle,
+      intervalKm: nextIntervalKm,
       date: service.date,
       cost: service.cost,
       location: service.location,
@@ -103,11 +128,36 @@ export default function ServiceHistoryPage() {
 
   async function handleSaveService() {
     if (!user || !newService.vehicleId) return;
+
+    const selectedPreset = SERVICE_PRESETS.find((preset) => preset.id === newService.presetId);
+    const finalTitle = newService.presetId === "custom"
+      ? (newService.title || "Custom Service").trim()
+      : (selectedPreset?.label || newService.title || "Service").trim();
+    const finalIntervalKm = newService.presetId === "custom"
+      ? Number(newService.intervalKm) || 0
+      : Number(newService.intervalKm) || selectedPreset?.intervalKm || 0;
+
+    if (!finalTitle || finalIntervalKm <= 0) {
+      alert(
+        t("Pilih servis dan interval yang valid.", "Please select a valid service and interval.")
+      );
+      return;
+    }
+
+    if (!newService.odometer || newService.odometer <= 0) {
+      alert(
+        t("Kilometer saat servis wajib diisi agar reminder berikutnya akurat.", "Odometer at service is required so the next reminder stays accurate.")
+      );
+      return;
+    }
+
     setSaving(true);
 
     const payload: ServiceRecordInput = {
       vehicleId: newService.vehicleId,
-      title: newService.title,
+      title: finalTitle,
+      intervalKm: finalIntervalKm,
+      presetId: newService.presetId,
       date: newService.date,
       cost: newService.cost,
       location: newService.location,
@@ -316,16 +366,79 @@ export default function ServiceHistoryPage() {
           </div>
 
           <div className="space-y-1.5">
-            <label className="block text-sm font-medium text-ink" htmlFor="serviceTitle">
+            <label className="block text-sm font-medium text-ink" htmlFor="servicePreset">
               {t("Judul Servis", "Service Title")}
             </label>
-            <Input
-              id="serviceTitle"
-              placeholder={t("Contoh: Ganti Oli Mesin", "Example: Engine Oil Change")}
-              value={newService.title}
-              onChange={(e) => setNewService({ ...newService, title: e.target.value })}
-              required
-            />
+            <select
+              id="servicePreset"
+              className="h-11 w-full rounded-xl border border-surface-border bg-white px-4 text-sm text-ink transition focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100"
+              value={newService.presetId}
+              onChange={(e) => {
+                const nextPresetId = e.target.value;
+                const selectedPreset = SERVICE_PRESETS.find((preset) => preset.id === nextPresetId);
+                setNewService({
+                  ...newService,
+                  presetId: nextPresetId,
+                  title: nextPresetId === "custom" ? "" : (selectedPreset?.label || ""),
+                  intervalKm: selectedPreset?.intervalKm ?? 5000,
+                });
+              }}
+            >
+              {SERVICE_PRESETS.map((preset) => (
+                <option key={preset.id} value={preset.id}>
+                  {preset.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {newService.presetId === "custom" && (
+            <div className="space-y-1.5">
+              <label className="block text-sm font-medium text-ink" htmlFor="serviceCustomTitle">
+                {t("Judul Servis Khusus", "Custom Service Title")}
+              </label>
+              <Input
+                id="serviceCustomTitle"
+                placeholder={t("Contoh: Service Rem Depan", "Example: Front Brake Service")}
+                value={newService.title}
+                onChange={(e) => setNewService({ ...newService, title: e.target.value })}
+                required
+              />
+            </div>
+          )}
+
+          <div className="space-y-1.5">
+            <label className="block text-sm font-medium text-ink" htmlFor="serviceInterval">
+              {t("Interval Servis", "Service Interval")}
+            </label>
+            <select
+              id="serviceInterval"
+              className="h-11 w-full rounded-xl border border-surface-border bg-white px-4 text-sm text-ink transition focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100"
+              value={newService.intervalKm}
+              onChange={(e) => setNewService({ ...newService, intervalKm: Number(e.target.value) })}
+            >
+              <option value={1000}>1.000 KM</option>
+              <option value={2000}>2.000 KM</option>
+              <option value={3000}>3.000 KM</option>
+              <option value={5000}>5.000 KM</option>
+              <option value={7500}>7.500 KM</option>
+              <option value={10000}>10.000 KM</option>
+              <option value={0}>{t("Custom", "Custom")}</option>
+            </select>
+            <p className="text-xs text-ink-muted">{t("Isi angka saja, tanpa menulis KM.", "Enter only the number, without writing KM.")}</p>
+            {(newService.intervalKm === 0 || newService.presetId === "custom") && (
+              <div className="mt-2">
+                <Input
+                  id="serviceCustomInterval"
+                  type="number"
+                  min={1000}
+                  step={1000}
+                  placeholder={t("Contoh: 12000", "Example: 12000")}
+                  value={newService.intervalKm || ""}
+                  onChange={(e) => setNewService({ ...newService, intervalKm: Number(e.target.value) || 0 })}
+                />
+              </div>
+            )}
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
@@ -381,8 +494,9 @@ export default function ServiceHistoryPage() {
               min={0}
               value={newService.odometer || ""}
               onChange={(e) => setNewService({ ...newService, odometer: parseInt(e.target.value) || 0 })}
+              required
             />
-            <p className="text-xs text-ink-muted">{t("KM saat ini akan di-update dan menjadi dasar pengingat servis berikutnya", "Current KM will be updated and used for the next service reminder")}</p>
+            <p className="text-xs text-ink-muted">{t("KM saat ini wajib diisi agar reminder servis berikutnya akurat.", "Current odometer is required so the next service reminder stays accurate.")}</p>
           </div>
 
           <div className="space-y-1.5">

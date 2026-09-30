@@ -41,6 +41,8 @@ export interface ServiceRecord {
   cost: number;
   location: string;
   odometer?: number;
+  intervalKm?: number;
+  presetId?: string;
   createdAt: Date;
   updatedAt: Date;
 }

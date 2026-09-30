@@ -182,16 +182,23 @@ export async function createServiceRecord(
     updatedAt: Timestamp.now(),
   });
 
-  // Update vehicle's lastServiceOdometer and odometer if provided
   if (data.vehicleId && data.odometer && data.odometer > 0) {
     const vehicle = await getVehicle(data.vehicleId);
     if (vehicle) {
-      const updateData: { lastServiceOdometer: number; odometer?: number; updatedAt: ReturnType<typeof Timestamp.now> } = {
+      const updateData: {
+        lastServiceOdometer: number;
+        serviceInterval?: number;
+        odometer?: number;
+        updatedAt: ReturnType<typeof Timestamp.now>;
+      } = {
         lastServiceOdometer: data.odometer,
         updatedAt: Timestamp.now(),
       };
 
-      // Also update vehicle odometer if higher
+      if (typeof data.intervalKm === "number" && data.intervalKm > 0) {
+        updateData.serviceInterval = data.intervalKm;
+      }
+
       if (data.odometer > (vehicle.odometer || 0)) {
         updateData.odometer = data.odometer;
       }
@@ -210,6 +217,34 @@ export async function updateServiceRecord(
   if (!db) throw new Error("Firestore not initialized");
 
   const docRef = doc(db, "services", recordId);
+  const snapshot = await getDoc(docRef);
+
+  if (snapshot.exists()) {
+    const existing = snapshot.data() as Partial<ServiceRecord>;
+    const nextVehicleId = data.vehicleId || existing.vehicleId;
+    const nextOdometer = typeof data.odometer === "number" ? data.odometer : existing.odometer;
+    const nextIntervalKm = typeof data.intervalKm === "number" ? data.intervalKm : existing.intervalKm;
+
+    if (nextVehicleId && typeof nextOdometer === "number" && nextOdometer > 0) {
+      const vehicle = await getVehicle(nextVehicleId);
+      if (vehicle) {
+        const updateData: Partial<VehicleInput> = {
+          lastServiceOdometer: nextOdometer,
+        };
+
+        if (typeof nextIntervalKm === "number" && nextIntervalKm > 0) {
+          updateData.serviceInterval = nextIntervalKm;
+        }
+
+        if (nextOdometer > (vehicle.odometer || 0)) {
+          updateData.odometer = nextOdometer;
+        }
+
+        await updateVehicle(nextVehicleId, updateData);
+      }
+    }
+  }
+
   await updateDoc(docRef, {
     ...data,
     updatedAt: Timestamp.now(),
